@@ -63,10 +63,12 @@ class QuWanHomeViewController: UIViewController {
     }
     
     private func createGameCard(game: (title: String, subtitle: String, url: String, icon: String, color: UIColor)) -> UIView {
+        let cardColor = game.color
+        
         let card = UIView()
         card.backgroundColor = Theme.cardBackground.withAlphaComponent(0.6)
         card.layer.cornerRadius = Theme.cardCornerRadius
-        card.layer.shadowColor = color.cgColor
+        card.layer.shadowColor = cardColor.cgColor
         card.layer.shadowOffset = CGSize(width: 0, height: 4)
         card.layer.shadowOpacity = 0.4
         card.layer.shadowRadius = 12
@@ -94,14 +96,14 @@ class QuWanHomeViewController: UIViewController {
         let subtitleLabel = UILabel()
         subtitleLabel.text = game.subtitle
         subtitleLabel.font = Theme.Font.regular(size: 14)
-        subtitleLabel.textColor = color
+        subtitleLabel.textColor = cardColor
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(subtitleLabel)
         
         let arrowLabel = UILabel()
         arrowLabel.text = "›"
         arrowLabel.font = Theme.Font.bold(size: 28)
-        arrowLabel.textColor = color
+        arrowLabel.textColor = cardColor
         arrowLabel.textAlignment = .right
         arrowLabel.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(arrowLabel)

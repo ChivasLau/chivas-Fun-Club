@@ -22,7 +22,12 @@ extension UIImage {
         let invertedFilter = CIFilter(name: "CIColorInvert")
         invertedFilter?.setValue(edgeOutput, forKey: kCIInputImageKey)
         
-        guard let finalOutput = invertedFilter?.outputImage ?? edgeOutput else { return nil }
+        let finalOutput: CIImage
+        if let inverted = invertedFilter?.outputImage {
+            finalOutput = inverted
+        } else {
+            finalOutput = edgeOutput
+        }
         
         guard let cgImage = context.createCGImage(finalOutput, from: finalOutput.extent) else { return nil }
         

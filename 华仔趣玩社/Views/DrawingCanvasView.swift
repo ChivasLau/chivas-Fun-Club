@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 
 class DrawingCanvasView: UIView {
     
