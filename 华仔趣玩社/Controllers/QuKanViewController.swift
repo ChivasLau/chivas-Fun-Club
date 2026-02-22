@@ -1,18 +1,31 @@
 import UIKit
-import WebKit
 
 class QuKanViewController: UIViewController {
     
-    private var webView: WKWebView!
-    private var loadingView: CyberLoadingView!
-    private var progressView: UIProgressView!
-    private let targetURL = "https://www.kkys1.com/"
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        let homeVC = QuKanHomeViewController()
+        addChild(homeVC)
+        view.addSubview(homeVC.view)
+        homeVC.view.frame = view.bounds
+        homeVC.didMove(toParent: self)
+        
+        title = "趣看"
+    }
+}
+
+class QuKanHomeViewController: UIViewController {
+    
+    private let websites: [(title: String, subtitle: String, url: String, icon: String, color: UIColor)] = [
+        ("快看影视", "热门影视在线观看", "https://www.kuaikaw.cn/", "🎬", UIColor(hex: "E74C3C")),
+        ("KK影视", "高清视频资源站", "https://www.kkys1.com/", "📺", UIColor(hex: "3498DB")),
+        ("Kimi影视", "精选视频内容", "https://kimivod.com/vod/125313/1-1.html", "🎥", UIColor(hex: "9B59B6"))
+    ]
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        setupNavigationBar()
-        loadWebView()
     }
     
     private func setupUI() {
@@ -20,176 +33,122 @@ class QuKanViewController: UIViewController {
         gradientBg.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(gradientBg)
         
-        let webConfiguration = WKWebViewConfiguration()
-        webConfiguration.allowsInlineMediaPlayback = true
-        webConfiguration.mediaTypesRequiringUserActionForPlayback = []
+        let titleLabel = UILabel()
+        titleLabel.text = "趣看天地"
+        titleLabel.font = Theme.Font.bold(size: 32)
+        titleLabel.textColor = Theme.brightWhite
+        titleLabel.textAlignment = .center
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
         
-        webView = WKWebView(frame: .zero, configuration: webConfiguration)
-        webView.navigationDelegate = self
-        webView.backgroundColor = .clear
-        webView.scrollView.backgroundColor = .clear
-        webView.layer.cornerRadius = Theme.cornerRadius
-        webView.clipsToBounds = true
-        webView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(webView)
+        let subtitleLabel = UILabel()
+        subtitleLabel.text = "选择你想看的视频网站"
+        subtitleLabel.font = Theme.Font.regular(size: 16)
+        subtitleLabel.textColor = Theme.mutedGray
+        subtitleLabel.textAlignment = .center
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(subtitleLabel)
         
-        NSLayoutConstraint.activate([
-            webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
-            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
-            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -8)
-        ])
+        let stackView = UIStackView()
+        stackView.axis = .vertical
+        stackView.spacing = 24
+        stackView.distribution = .fillEqually
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stackView)
         
-        loadingView = CyberLoadingView(frame: CGRect(x: 0, y: 0, width: 120, height: 120))
-        loadingView.center = view.center
-        loadingView.autoresizingMask = [.flexibleTopMargin, .flexibleBottomMargin, .flexibleLeftMargin, .flexibleRightMargin]
-        view.addSubview(loadingView)
-        
-        progressView = UIProgressView(progressViewStyle: .bar)
-        progressView.progressTintColor = Theme.electricBlue
-        progressView.trackTintColor = Theme.mutedGray.withAlphaComponent(0.3)
-        progressView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(progressView)
+        for site in websites {
+            let card = createSiteCard(site: site)
+            stackView.addArrangedSubview(card)
+        }
         
         NSLayoutConstraint.activate([
-            progressView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            progressView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            progressView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            progressView.heightAnchor.constraint(equalToConstant: 2)
-        ])
-        
-        webView.addObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress), options: .new, context: nil)
-    }
-    
-    private func setupNavigationBar() {
-        title = "趣看"
-        navigationController?.navigationBar.setBackgroundImage(UIImage(), for: .default)
-        navigationController?.navigationBar.shadowImage = UIImage()
-        navigationController?.navigationBar.isTranslucent = true
-        
-        let refreshButton = UIBarButtonItem(
-            image: makeRefreshIcon(),
-            style: .plain,
-            target: self,
-            action: #selector(refreshAction)
-        )
-        refreshButton.tintColor = Theme.neonPink
-        
-        let shareButton = UIBarButtonItem(
-            image: makeShareIcon(),
-            style: .plain,
-            target: self,
-            action: #selector(shareAction)
-        )
-        shareButton.tintColor = Theme.electricBlue
-        
-        navigationItem.rightBarButtonItems = [shareButton, refreshButton]
-    }
-    
-    private func makeRefreshIcon() -> UIImage? {
-        UIGraphicsBeginImageContextWithOptions(CGSize(width: 22, height: 22), false, 0)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setStrokeColor(Theme.neonPink.cgColor)
-        context?.setLineWidth(2)
-        context?.addEllipse(in: CGRect(x: 3, y: 3, width: 16, height: 16))
-        context?.move(to: CGPoint(x: 11, y: 0))
-        context?.addLine(to: CGPoint(x: 11, y: 6))
-        context?.strokePath()
-        let image = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return image
-    }
-    
-    private func makeShareIcon() -> UIImage? {
-        UIGraphicsBeginImageContextWithOptions(CGSize(width: 22, height: 22), false, 0)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setStrokeColor(Theme.electricBlue.cgColor)
-        context?.setLineWidth(2)
-        context?.move(to: CGPoint(x: 11, y: 3))
-        context?.addLine(to: CGPoint(x: 11, y: 13))
-        context?.move(to: CGPoint(x: 6, y: 8))
-        context?.addLine(to: CGPoint(x: 11, y: 3))
-        context?.addLine(to: CGPoint(x: 16, y: 8))
-        context?.move(to: CGPoint(x: 5, y: 12))
-        context?.addLine(to: CGPoint(x: 5, y: 19))
-        context?.addLine(to: CGPoint(x: 17, y: 19))
-        context?.addLine(to: CGPoint(x: 17, y: 12))
-        context?.strokePath()
-        let image = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        return image
-    }
-    
-    private func loadWebView() {
-        loadingView.startAnimating()
-        loadingView.isHidden = false
-        
-        guard let url = URL(string: targetURL) else { return }
-        let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
-        webView.load(request)
-    }
-    
-    @objc private func refreshAction() {
-        webView.reload()
-    }
-    
-    @objc private func shareAction() {
-        guard let url = webView.url else { return }
-        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        activityVC.popoverPresentationController?.barButtonItem = navigationItem.rightBarButtonItems?.first
-        present(activityVC, animated: true)
-    }
-    
-    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "estimatedProgress" {
-            let progress = Float(webView.estimatedProgress)
-            progressView.setProgress(progress, animated: true)
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 30),
+            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
-            if progress >= 1.0 {
-                UIView.animate(withDuration: 0.3, delay: 0.5, options: [], animations: {
-                    self.progressView.alpha = 0
-                }, completion: nil)
-            }
-        }
-    }
-    
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        loadingView.center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
-    }
-    
-    deinit {
-        webView.removeObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress))
-    }
-}
-
-extension QuKanViewController: WKNavigationDelegate {
-    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        loadingView.startAnimating()
-        loadingView.isHidden = false
-        progressView.setProgress(0, animated: false)
-        progressView.alpha = 1
-    }
-    
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        loadingView.stopAnimating()
-        UIView.animate(withDuration: 0.3) {
-            self.loadingView.alpha = 0
-        } completion: { _ in
-            self.loadingView.isHidden = true
-            self.loadingView.alpha = 1
-        }
-    }
-    
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        loadingView.stopAnimating()
-        loadingView.isHidden = true
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            subtitleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            
+            stackView.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 50),
+            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
+            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
+            stackView.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -40)
+        ])
         
-        let alert = UIAlertController(title: "加载失败", message: error.localizedDescription, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "重试", style: .default) { _ in
-            self.loadWebView()
-        })
-        alert.addAction(UIAlertAction(title: "取消", style: .cancel))
-        present(alert, animated: true)
+        title = "趣看"
+    }
+    
+    private func createSiteCard(site: (title: String, subtitle: String, url: String, icon: String, color: UIColor)) -> UIView {
+        let cardColor = site.color
+        
+        let card = UIView()
+        card.backgroundColor = Theme.cardBackground.withAlphaComponent(0.6)
+        card.layer.cornerRadius = Theme.cardCornerRadius
+        card.layer.shadowColor = cardColor.cgColor
+        card.layer.shadowOffset = CGSize(width: 0, height: 4)
+        card.layer.shadowOpacity = 0.4
+        card.layer.shadowRadius = 12
+        card.translatesAutoresizingMaskIntoConstraints = false
+        
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
+        card.addGestureRecognizer(tapGesture)
+        card.tag = websites.firstIndex(where: { $0.title == site.title }) ?? 0
+        card.isUserInteractionEnabled = true
+        
+        let iconLabel = UILabel()
+        iconLabel.text = site.icon
+        iconLabel.font = UIFont.systemFont(ofSize: 56)
+        iconLabel.textAlignment = .center
+        iconLabel.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(iconLabel)
+        
+        let titleLabel = UILabel()
+        titleLabel.text = site.title
+        titleLabel.font = Theme.Font.bold(size: 26)
+        titleLabel.textColor = Theme.brightWhite
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(titleLabel)
+        
+        let subtitleLabel = UILabel()
+        subtitleLabel.text = site.subtitle
+        subtitleLabel.font = Theme.Font.regular(size: 15)
+        subtitleLabel.textColor = cardColor
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(subtitleLabel)
+        
+        let arrowLabel = UILabel()
+        arrowLabel.text = "›"
+        arrowLabel.font = Theme.Font.bold(size: 32)
+        arrowLabel.textColor = cardColor
+        arrowLabel.textAlignment = .right
+        arrowLabel.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(arrowLabel)
+        
+        NSLayoutConstraint.activate([
+            card.heightAnchor.constraint(equalToConstant: 120),
+            
+            iconLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 24),
+            iconLabel.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            iconLabel.widthAnchor.constraint(equalToConstant: 70),
+            
+            titleLabel.leadingAnchor.constraint(equalTo: iconLabel.trailingAnchor, constant: 20),
+            titleLabel.topAnchor.constraint(equalTo: card.topAnchor, constant: 28),
+            
+            subtitleLabel.leadingAnchor.constraint(equalTo: iconLabel.trailingAnchor, constant: 20),
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 6),
+            
+            arrowLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -24),
+            arrowLabel.centerYAnchor.constraint(equalTo: card.centerYAnchor)
+        ])
+        
+        return card
+    }
+    
+    @objc private func cardTapped(_ gesture: UITapGestureRecognizer) {
+        guard let index = gesture.view?.tag else { return }
+        let site = websites[index]
+        
+        let webVC = QuKanWebViewController()
+        webVC.configure(title: site.title, url: site.url, themeColor: site.color)
+        navigationController?.pushViewController(webVC, animated: true)
     }
 }
