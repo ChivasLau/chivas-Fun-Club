@@ -56,5 +56,9 @@
     <true/>
     <key>UIStatusBarStyle</key>
     <string>UIStatusBarStyleLightContent</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>需要访问相册以导入图片进行填色创作</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>需要保存您的绘画作品到相册</string>
 </dict>
 </plist>
