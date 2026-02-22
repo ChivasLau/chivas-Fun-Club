@@ -68,7 +68,7 @@ class QuKanViewController: UIViewController {
         navigationController?.navigationBar.isTranslucent = true
         
         let refreshButton = UIBarButtonItem(
-            image: UIImage(systemName: "arrow.clockwise") ?? makeRefreshIcon(),
+            image: makeRefreshIcon(),
             style: .plain,
             target: self,
             action: #selector(refreshAction)
@@ -76,7 +76,7 @@ class QuKanViewController: UIViewController {
         refreshButton.tintColor = Theme.neonPink
         
         let shareButton = UIBarButtonItem(
-            image: UIImage(systemName: "square.and.arrow.up") ?? makeShareIcon(),
+            image: makeShareIcon(),
             style: .plain,
             target: self,
             action: #selector(shareAction)

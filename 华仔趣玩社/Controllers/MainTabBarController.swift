@@ -14,7 +14,6 @@ class MainTabBarController: UITabBarController {
         
         tabBar.barTintColor = Theme.cardBackground.withAlphaComponent(0.9)
         tabBar.tintColor = Theme.electricBlue
-        tabBar.unselectedItemTintColor = Theme.mutedGray
         tabBar.isTranslucent = true
         tabBar.layer.borderWidth = 0.5
         tabBar.layer.borderColor = Theme.neonPink.withAlphaComponent(0.3).cgColor
@@ -36,19 +35,34 @@ class MainTabBarController: UITabBarController {
                 tabBar.scrollEdgeAppearance = appearance
             }
         }
+        
+        if #available(iOS 13.0, *) {
+            let navAppearance = UINavigationBarAppearance()
+            navAppearance.configureWithTransparentBackground()
+            navAppearance.backgroundColor = UIColor.clear
+            navAppearance.titleTextAttributes = [
+                .foregroundColor: Theme.brightWhite,
+                .font: Theme.Font.bold(size: 18)
+            ]
+            navAppearance.largeTitleTextAttributes = [
+                .foregroundColor: Theme.brightWhite,
+                .font: Theme.Font.bold(size: 34)
+            ]
+            UINavigationBar.appearance().standardAppearance = navAppearance
+            UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+        } else {
+            UINavigationBar.appearance().isTranslucent = true
+            UINavigationBar.appearance().titleTextAttributes = [
+                .foregroundColor: Theme.brightWhite,
+                .font: Theme.Font.bold(size: 18)
+            ]
+        }
+        UINavigationBar.appearance().tintColor = Theme.electricBlue
     }
     
     private func setupViewControllers() {
         let quKan = UINavigationController(rootViewController: QuKanViewController())
-        quKan.tabBarItem = UITabBarItem(
-            title: "趣看",
-            image: UIImage(named: "tab_qukan"),
-            selectedImage: UIImage(named: "tab_qukan_selected")
-        )
-        if quKan.tabBarItem.image == nil {
-            quKan.tabBarItem = UITabBarItem(title: "趣看", image: nil, tag: 0)
-            quKan.tabBarItem.imageInsets = UIEdgeInsets(top: 6, left: 0, bottom: -6, right: 0)
-        }
+        quKan.tabBarItem = UITabBarItem(title: "趣看", image: nil, tag: 0)
         
         let quWan = UINavigationController(rootViewController: QuWanViewController())
         quWan.tabBarItem = UITabBarItem(title: "趣玩", image: nil, tag: 1)
@@ -60,25 +74,5 @@ class MainTabBarController: UITabBarController {
         quDu.tabBarItem = UITabBarItem(title: "趣读", image: nil, tag: 3)
         
         viewControllers = [quKan, quWan, quZuo, quDu]
-        
-        setupNavigationBarAppearance()
-    }
-    
-    private func setupNavigationBarAppearance() {
-        let navAppearance = UINavigationBarAppearance()
-        navAppearance.configureWithTransparentBackground()
-        navAppearance.backgroundColor = UIColor.clear
-        navAppearance.titleTextAttributes = [
-            .foregroundColor: Theme.brightWhite,
-            .font: Theme.Font.bold(size: 18)
-        ]
-        navAppearance.largeTitleTextAttributes = [
-            .foregroundColor: Theme.brightWhite,
-            .font: Theme.Font.bold(size: 34)
-        ]
-        
-        UINavigationBar.appearance().standardAppearance = navAppearance
-        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
-        UINavigationBar.appearance().tintColor = Theme.electricBlue
     }
 }
