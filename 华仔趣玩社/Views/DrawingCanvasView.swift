@@ -5,15 +5,18 @@ class DrawingCanvasView: UIView {
     
     private var currentMode: DrawingMode = .freeDraw
     private var currentColor: UIColor = .black
-    private var brushSize: CGFloat = 5.0
+    private var brushSize: CGFloat = 8.0
+    private var brushType: BrushType = .normal
     
     private var drawingImage: UIImage?
     private var backgroundImage: UIImage?
     
-    private var paths: [(path: UIBezierPath, color: UIColor, width: CGFloat)] = []
+    private var paths: [(path: UIBezierPath, color: UIColor, width: CGFloat, type: BrushType)] = []
     private var currentPath: UIBezierPath?
     private var undoStack: [UIImage] = []
     private let maxUndoCount = 20
+    
+    private var lastPoint: CGPoint?
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -50,6 +53,10 @@ class DrawingCanvasView: UIView {
     
     func setBrushSize(_ size: CGFloat) {
         brushSize = size
+    }
+    
+    func setBrushType(_ type: BrushType) {
+        brushType = type
     }
     
     func setBackgroundImage(_ image: UIImage) {
@@ -99,25 +106,112 @@ class DrawingCanvasView: UIView {
         switch gesture.state {
         case .began:
             saveForUndo()
-            currentPath = UIBezierPath()
-            currentPath?.lineCapStyle = .round
-            currentPath?.lineJoinStyle = .round
-            currentPath?.move(to: location)
+            lastPoint = location
             
         case .changed:
-            currentPath?.addLine(to: location)
-            drawCurrentPath()
+            if let last = lastPoint {
+                drawLine(from: last, to: location)
+            }
+            lastPoint = location
             
         case .ended, .cancelled:
-            if let path = currentPath {
-                paths.append((path: path, color: currentColor, width: brushSize))
-                mergePathsToImage()
-            }
-            currentPath = nil
+            lastPoint = nil
             
         default:
             break
         }
+    }
+    
+    private func drawLine(from start: CGPoint, to end: CGPoint) {
+        UIGraphicsBeginImageContextWithOptions(bounds.size, false, UIScreen.main.scale)
+        
+        drawingImage?.draw(in: bounds)
+        
+        let context = UIGraphicsGetCurrentContext()
+        
+        switch brushType {
+        case .normal:
+            drawNormalStroke(context: context, from: start, to: end)
+        case .round:
+            drawRoundStroke(context: context, from: start, to: end)
+        case .square:
+            drawSquareStroke(context: context, from: start, to: end)
+        case .spray:
+            drawSprayStroke(from: start, to: end)
+        case .highlighter:
+            drawHighlighterStroke(context: context, from: start, to: end)
+        }
+        
+        drawingImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        setNeedsDisplay()
+    }
+    
+    private func drawNormalStroke(context: CGContext?, from start: CGPoint, to end: CGPoint) {
+        context?.setStrokeColor(currentColor.cgColor)
+        context?.setLineWidth(brushSize)
+        context?.setLineCap(.round)
+        context?.setLineJoin(.round)
+        context?.move(to: start)
+        context?.addLine(to: end)
+        context?.strokePath()
+    }
+    
+    private func drawRoundStroke(context: CGContext?, from start: CGPoint, to end: CGPoint) {
+        context?.setStrokeColor(currentColor.cgColor)
+        context?.setLineWidth(brushSize * 1.2)
+        context?.setLineCap(.round)
+        context?.setLineJoin(.round)
+        context?.setShadow(offset: .zero, blur: brushSize / 2, color: currentColor.withAlphaComponent(0.3).cgColor)
+        context?.move(to: start)
+        context?.addLine(to: end)
+        context?.strokePath()
+    }
+    
+    private func drawSquareStroke(context: CGContext?, from start: CGPoint, to end: CGPoint) {
+        context?.setStrokeColor(currentColor.cgColor)
+        context?.setLineWidth(brushSize)
+        context?.setLineCap(.square)
+        context?.setLineJoin(.miter)
+        context?.move(to: start)
+        context?.addLine(to: end)
+        context?.strokePath()
+    }
+    
+    private func drawSprayStroke(from start: CGPoint, to end: CGPoint) {
+        let distance = hypot(end.x - start.x, end.y - start.y)
+        let steps = max(Int(distance / 2), 1)
+        
+        for step in 0...steps {
+            let t = CGFloat(step) / CGFloat(steps)
+            let x = start.x + (end.x - start.x) * t
+            let y = start.y + (end.y - start.y) * t
+            
+            let dotCount = Int(brushSize * 2)
+            for _ in 0..<dotCount {
+                let angle = CGFloat.random(in: 0..<CGFloat.pi * 2)
+                let radius = CGFloat.random(in: 0..<brushSize)
+                let dotX = x + cos(angle) * radius
+                let dotY = y + sin(angle) * radius
+                
+                let dotSize = CGFloat.random(in: 1...3)
+                let path = UIBezierPath(arcCenter: CGPoint(x: dotX, y: dotY), radius: dotSize / 2, startAngle: 0, endAngle: CGFloat.pi * 2, clockwise: true)
+                currentColor.withAlphaComponent(CGFloat.random(in: 0.5...1.0)).setFill()
+                path.fill()
+            }
+        }
+    }
+    
+    private func drawHighlighterStroke(context: CGContext?, from start: CGPoint, to end: CGPoint) {
+        context?.setStrokeColor(currentColor.withAlphaComponent(0.4).cgColor)
+        context?.setLineWidth(brushSize * 2)
+        context?.setLineCap(.square)
+        context?.setBlendMode(.multiply)
+        context?.move(to: start)
+        context?.addLine(to: end)
+        context?.strokePath()
+        context?.setBlendMode(.normal)
     }
     
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
@@ -126,44 +220,6 @@ class DrawingCanvasView: UIView {
         let location = gesture.location(in: self)
         saveForUndo()
         floodFill(at: location, with: currentColor)
-    }
-    
-    private func drawCurrentPath() {
-        guard let path = currentPath else { return }
-        
-        UIGraphicsBeginImageContextWithOptions(bounds.size, false, UIScreen.main.scale)
-        
-        drawingImage?.draw(in: bounds)
-        
-        currentColor.setStroke()
-        path.lineWidth = brushSize
-        path.stroke()
-        
-        drawingImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        setNeedsDisplay()
-    }
-    
-    private func mergePathsToImage() {
-        UIGraphicsBeginImageContextWithOptions(bounds.size, false, UIScreen.main.scale)
-        
-        UIColor.white.setFill()
-        UIRectFill(bounds)
-        
-        drawingImage?.draw(in: bounds)
-        
-        for item in paths {
-            item.color.setStroke()
-            item.path.lineWidth = item.width
-            item.path.stroke()
-        }
-        
-        drawingImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        paths.removeAll()
-        setNeedsDisplay()
     }
     
     private func floodFill(at point: CGPoint, with color: UIColor) {
@@ -240,11 +296,11 @@ class DrawingCanvasView: UIView {
             if visited.contains(key) { continue }
             if cx < 0 || cx >= width || cy < 0 || cy >= height { continue }
             
-            let currentColor = getPixelColor(data: data, x: cx, y: cy, width: width)
+            let currentColorPixel = getPixelColor(data: data, x: cx, y: cy, width: width)
             
-            if abs(Int(currentColor.r) - Int(targetColor.r)) > tolerance ||
-               abs(Int(currentColor.g) - Int(targetColor.g)) > tolerance ||
-               abs(Int(currentColor.b) - Int(targetColor.b)) > tolerance {
+            if abs(Int(currentColorPixel.r) - Int(targetColor.r)) > tolerance ||
+               abs(Int(currentColorPixel.g) - Int(targetColor.g)) > tolerance ||
+               abs(Int(currentColorPixel.b) - Int(targetColor.b)) > tolerance {
                 continue
             }
             

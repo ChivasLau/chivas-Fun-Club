@@ -5,24 +5,47 @@ enum DrawingMode: Int {
     case colorFill = 1
 }
 
+enum BrushType: Int {
+    case normal = 0
+    case round = 1
+    case square = 2
+    case spray = 3
+    case highlighter = 4
+}
+
 class DrawingBoardViewController: UIViewController {
     
     private var canvasView: DrawingCanvasView!
     private var topBar: UIView!
-    private var toolBar: UIView!
+    private var toolBar: UIScrollView!
     private var modeLabel: UILabel!
+    private var currentColorPreview: UIView!
+    private var colorButtons: [UIButton] = []
+    private var brushButtons: [UIButton] = []
     
     private var currentMode: DrawingMode = .freeDraw
     private var currentColor: UIColor = .black
-    private var currentBrushSize: CGFloat = 5.0
+    private var currentBrushSize: CGFloat = 8.0
+    private var currentBrushType: BrushType = .normal
     
     private var importManager: ImageImportManager!
     private var cachedOutlineImage: UIImage?
     
     private let colors: [UIColor] = [
-        .black, .white, .red, .orange, .yellow, .green, .cyan, .blue, .purple, .brown, .gray,
-        UIColor(hex: "FF6B6B"), UIColor(hex: "4ECDC4"), UIColor(hex: "FFE66D"), UIColor(hex: "95E1D3"),
-        UIColor(hex: "F38181"), UIColor(hex: "AA96DA"), UIColor(hex: "FCBAD3"), UIColor(hex: "A8D8EA")
+        .black, UIColor(hex: "333333"), .gray, .white,
+        .red, .orange, .yellow, .green,
+        .cyan, .blue, .purple, .brown,
+        UIColor(hex: "FF6B6B"), UIColor(hex: "FF8E72"), UIColor(hex: "FFE66D"), UIColor(hex: "7BED9F"),
+        UIColor(hex: "70A1FF"), UIColor(hex: "5352ED"), UIColor(hex: "AA96DA"), UIColor(hex: "FCBAD3"),
+        UIColor(hex: "FF9FF3"), UIColor(hex: "F368E0"), UIColor(hex: "FF6B6B"), UIColor(hex: "EE5A24")
+    ]
+    
+    private let brushTypes: [(name: String, icon: String)] = [
+        ("普通笔", "✏️"),
+        ("圆头笔", "⚫"),
+        ("方头笔", "◼️"),
+        ("喷枪", "💨"),
+        ("荧光笔", "💡")
     ]
     
     override func viewDidLoad() {
@@ -35,13 +58,13 @@ class DrawingBoardViewController: UIViewController {
         view.backgroundColor = Theme.gradientTop
         
         topBar = UIView()
-        topBar.backgroundColor = Theme.cardBackground.withAlphaComponent(0.8)
+        topBar.backgroundColor = Theme.cardBackground.withAlphaComponent(0.9)
         topBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(topBar)
         
         let titleLabel = UILabel()
         titleLabel.text = "宝贝画板"
-        titleLabel.font = Theme.Font.bold(size: 20)
+        titleLabel.font = Theme.Font.bold(size: 22)
         titleLabel.textColor = Theme.brightWhite
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         topBar.addSubview(titleLabel)
@@ -52,6 +75,14 @@ class DrawingBoardViewController: UIViewController {
         modeLabel.textColor = Theme.electricBlue
         modeLabel.translatesAutoresizingMaskIntoConstraints = false
         topBar.addSubview(modeLabel)
+        
+        currentColorPreview = UIView()
+        currentColorPreview.backgroundColor = currentColor
+        currentColorPreview.layer.cornerRadius = 15
+        currentColorPreview.layer.borderWidth = 3
+        currentColorPreview.layer.borderColor = Theme.brightWhite.cgColor
+        currentColorPreview.translatesAutoresizingMaskIntoConstraints = false
+        topBar.addSubview(currentColorPreview)
         
         let modeButton = UIButton(type: .system)
         modeButton.setTitle("切换模式", for: .normal)
@@ -68,7 +99,7 @@ class DrawingBoardViewController: UIViewController {
         clearButton.setTitle("清空", for: .normal)
         clearButton.titleLabel?.font = Theme.Font.bold(size: 14)
         clearButton.setTitleColor(Theme.brightWhite, for: .normal)
-        clearButton.backgroundColor = UIColor.red.withAlphaComponent(0.6)
+        clearButton.backgroundColor = UIColor.red.withAlphaComponent(0.7)
         clearButton.layer.cornerRadius = 8
         clearButton.translatesAutoresizingMaskIntoConstraints = false
         clearButton.addTarget(self, action: #selector(clearCanvas), for: .touchUpInside)
@@ -78,13 +109,18 @@ class DrawingBoardViewController: UIViewController {
             topBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             topBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            topBar.heightAnchor.constraint(equalToConstant: 60),
+            topBar.heightAnchor.constraint(equalToConstant: 70),
             
-            titleLabel.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 16),
-            titleLabel.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
+            titleLabel.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 20),
+            titleLabel.topAnchor.constraint(equalTo: topBar.topAnchor, constant: 12),
             
             modeLabel.leadingAnchor.constraint(equalTo: titleLabel.trailingAnchor, constant: 12),
-            modeLabel.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
+            modeLabel.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            
+            currentColorPreview.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            currentColorPreview.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            currentColorPreview.widthAnchor.constraint(equalToConstant: 30),
+            currentColorPreview.heightAnchor.constraint(equalToConstant: 30),
             
             clearButton.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -16),
             clearButton.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
@@ -105,7 +141,7 @@ class DrawingBoardViewController: UIViewController {
         NSLayoutConstraint.activate([
             canvasView.topAnchor.constraint(equalTo: topBar.bottomAnchor, constant: 8),
             canvasView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-            canvasView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -220),
+            canvasView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -240),
             canvasView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8)
         ])
         
@@ -115,16 +151,18 @@ class DrawingBoardViewController: UIViewController {
     }
     
     private func setupToolBar() {
-        toolBar = UIView()
-        toolBar.backgroundColor = Theme.cardBackground.withAlphaComponent(0.8)
+        toolBar = UIScrollView()
+        toolBar.backgroundColor = Theme.cardBackground.withAlphaComponent(0.9)
         toolBar.layer.cornerRadius = Theme.cornerRadius
         toolBar.translatesAutoresizingMaskIntoConstraints = false
+        toolBar.alwaysBounceVertical = true
+        toolBar.showsVerticalScrollIndicator = true
         view.addSubview(toolBar)
         
         NSLayoutConstraint.activate([
             toolBar.topAnchor.constraint(equalTo: topBar.bottomAnchor, constant: 8),
             toolBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
-            toolBar.widthAnchor.constraint(equalToConstant: 200),
+            toolBar.widthAnchor.constraint(equalToConstant: 220),
             toolBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8)
         ])
         
@@ -135,181 +173,292 @@ class DrawingBoardViewController: UIViewController {
         for subview in toolBar.subviews {
             subview.removeFromSuperview()
         }
+        colorButtons.removeAll()
+        brushButtons.removeAll()
+        
+        let contentView = UIView()
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        toolBar.addSubview(contentView)
+        
+        NSLayoutConstraint.activate([
+            contentView.topAnchor.constraint(equalTo: toolBar.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor),
+            contentView.widthAnchor.constraint(equalTo: toolBar.widthAnchor),
+            contentView.bottomAnchor.constraint(equalTo: toolBar.bottomAnchor)
+        ])
         
         let brushLabel = UILabel()
-        brushLabel.text = "画笔大小"
-        brushLabel.font = Theme.Font.bold(size: 14)
+        brushLabel.text = "画笔类型"
+        brushLabel.font = Theme.Font.bold(size: 16)
         brushLabel.textColor = Theme.brightWhite
         brushLabel.translatesAutoresizingMaskIntoConstraints = false
-        toolBar.addSubview(brushLabel)
+        contentView.addSubview(brushLabel)
+        
+        let brushStack = UIStackView()
+        brushStack.axis = .horizontal
+        brushStack.spacing = 8
+        brushStack.distribution = .fillEqually
+        brushStack.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(brushStack)
+        
+        for (index, brush) in brushTypes.enumerated() {
+            let btn = UIButton()
+            btn.setTitle(brush.icon, for: .normal)
+            btn.titleLabel?.font = UIFont.systemFont(ofSize: 20)
+            btn.backgroundColor = currentBrushType.rawValue == index ? Theme.neonPink.withAlphaComponent(0.8) : Theme.cardBackground
+            btn.layer.cornerRadius = 8
+            btn.layer.borderWidth = 2
+            btn.layer.borderColor = currentBrushType.rawValue == index ? Theme.neonPink.cgColor : Theme.mutedGray.cgColor
+            btn.tag = index
+            btn.addTarget(self, action: #selector(brushTypeSelected(_:)), for: .touchUpInside)
+            brushStack.addArrangedSubview(btn)
+            brushButtons.append(btn)
+        }
+        
+        let sizeLabel = UILabel()
+        sizeLabel.text = "画笔大小"
+        sizeLabel.font = Theme.Font.bold(size: 16)
+        sizeLabel.textColor = Theme.brightWhite
+        sizeLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(sizeLabel)
+        
+        let sizeValueLabel = UILabel()
+        sizeValueLabel.text = "\(Int(currentBrushSize))"
+        sizeValueLabel.font = Theme.Font.bold(size: 14)
+        sizeValueLabel.textColor = Theme.electricBlue
+        sizeValueLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(sizeValueLabel)
         
         let brushSlider = UISlider()
         brushSlider.minimumValue = 1
-        brushSlider.maximumValue = 30
+        brushSlider.maximumValue = 50
         brushSlider.value = Float(currentBrushSize)
         brushSlider.tintColor = Theme.electricBlue
         brushSlider.translatesAutoresizingMaskIntoConstraints = false
         brushSlider.addTarget(self, action: #selector(brushSizeChanged(_:)), for: .valueChanged)
-        toolBar.addSubview(brushSlider)
+        contentView.addSubview(brushSlider)
         
         let colorLabel = UILabel()
-        colorLabel.text = "颜色"
-        colorLabel.font = Theme.Font.bold(size: 14)
+        colorLabel.text = "选择颜色"
+        colorLabel.font = Theme.Font.bold(size: 16)
         colorLabel.textColor = Theme.brightWhite
         colorLabel.translatesAutoresizingMaskIntoConstraints = false
-        toolBar.addSubview(colorLabel)
+        contentView.addSubview(colorLabel)
         
-        let colorStack = UIStackView()
-        colorStack.axis = .horizontal
-        colorStack.spacing = 8
-        colorStack.distribution = .fillEqually
-        colorStack.translatesAutoresizingMaskIntoConstraints = false
-        toolBar.addSubview(colorStack)
+        let colorGrid = UIView()
+        colorGrid.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(colorGrid)
         
-        for (index, color) in colors.prefix(10).enumerated() {
-            let colorBtn = UIButton()
-            colorBtn.backgroundColor = color
-            colorBtn.layer.cornerRadius = 15
-            colorBtn.layer.borderWidth = 2
-            colorBtn.layer.borderColor = currentColor == color ? Theme.neonPink.cgColor : UIColor.clear.cgColor
-            colorBtn.tag = index
-            colorBtn.addTarget(self, action: #selector(colorSelected(_:)), for: .touchUpInside)
-            colorStack.addArrangedSubview(colorBtn)
+        let cols = 4
+        let spacing: CGFloat = 8
+        let btnSize: CGFloat = 40
+        
+        for (index, color) in colors.enumerated() {
+            let row = index / cols
+            let col = index % cols
+            
+            let btn = UIButton()
+            btn.backgroundColor = color
+            btn.layer.cornerRadius = btnSize / 2
+            btn.layer.borderWidth = currentColor.isEqual(color) ? 4 : 2
+            btn.layer.borderColor = currentColor.isEqual(color) ? Theme.neonPink.cgColor : UIColor.white.withAlphaComponent(0.5).cgColor
+            btn.tag = index
+            btn.translatesAutoresizingMaskIntoConstraints = false
+            btn.addTarget(self, action: #selector(colorSelected(_:)), for: .touchUpInside)
+            colorGrid.addSubview(btn)
+            colorButtons.append(btn)
+            
+            NSLayoutConstraint.activate([
+                btn.leadingAnchor.constraint(equalTo: colorGrid.leadingAnchor, constant: CGFloat(col) * (btnSize + spacing)),
+                btn.topAnchor.constraint(equalTo: colorGrid.topAnchor, constant: CGFloat(row) * (btnSize + spacing)),
+                btn.widthAnchor.constraint(equalToConstant: btnSize),
+                btn.heightAnchor.constraint(equalToConstant: btnSize)
+            ])
         }
+        
+        let rows = (colors.count + cols - 1) / cols
+        let colorGridHeight = CGFloat(rows) * (btnSize + spacing) - spacing
         
         let undoBtn = UIButton(type: .system)
         undoBtn.setTitle("撤销", for: .normal)
-        undoBtn.titleLabel?.font = Theme.Font.bold(size: 14)
+        undoBtn.titleLabel?.font = Theme.Font.bold(size: 16)
         undoBtn.setTitleColor(Theme.brightWhite, for: .normal)
-        undoBtn.backgroundColor = Theme.electricBlue.withAlphaComponent(0.6)
-        undoBtn.layer.cornerRadius = 8
+        undoBtn.backgroundColor = Theme.electricBlue
+        undoBtn.layer.cornerRadius = 10
         undoBtn.translatesAutoresizingMaskIntoConstraints = false
         undoBtn.addTarget(self, action: #selector(undoAction), for: .touchUpInside)
-        toolBar.addSubview(undoBtn)
+        contentView.addSubview(undoBtn)
         
         let saveBtn = UIButton(type: .system)
         saveBtn.setTitle("保存", for: .normal)
-        saveBtn.titleLabel?.font = Theme.Font.bold(size: 14)
+        saveBtn.titleLabel?.font = Theme.Font.bold(size: 16)
         saveBtn.setTitleColor(Theme.brightWhite, for: .normal)
-        saveBtn.backgroundColor = Theme.neonPink.withAlphaComponent(0.6)
-        saveBtn.layer.cornerRadius = 8
+        saveBtn.backgroundColor = Theme.neonPink
+        saveBtn.layer.cornerRadius = 10
         saveBtn.translatesAutoresizingMaskIntoConstraints = false
         saveBtn.addTarget(self, action: #selector(saveAction), for: .touchUpInside)
-        toolBar.addSubview(saveBtn)
+        contentView.addSubview(saveBtn)
         
         NSLayoutConstraint.activate([
-            brushLabel.topAnchor.constraint(equalTo: toolBar.topAnchor, constant: 16),
-            brushLabel.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
-            brushLabel.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor, constant: -16),
+            brushLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
+            brushLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
             
-            brushSlider.topAnchor.constraint(equalTo: brushLabel.bottomAnchor, constant: 8),
-            brushSlider.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
-            brushSlider.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor, constant: -16),
+            brushStack.topAnchor.constraint(equalTo: brushLabel.bottomAnchor, constant: 8),
+            brushStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            brushStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            brushStack.heightAnchor.constraint(equalToConstant: 44),
+            
+            sizeLabel.topAnchor.constraint(equalTo: brushStack.bottomAnchor, constant: 20),
+            sizeLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            
+            sizeValueLabel.centerYAnchor.constraint(equalTo: sizeLabel.centerYAnchor),
+            sizeValueLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            
+            brushSlider.topAnchor.constraint(equalTo: sizeLabel.bottomAnchor, constant: 8),
+            brushSlider.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            brushSlider.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
             
             colorLabel.topAnchor.constraint(equalTo: brushSlider.bottomAnchor, constant: 20),
-            colorLabel.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
+            colorLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
             
-            colorStack.topAnchor.constraint(equalTo: colorLabel.bottomAnchor, constant: 8),
-            colorStack.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
-            colorStack.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor, constant: -16),
-            colorStack.heightAnchor.constraint(equalToConstant: 30),
+            colorGrid.topAnchor.constraint(equalTo: colorLabel.bottomAnchor, constant: 12),
+            colorGrid.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            colorGrid.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            colorGrid.heightAnchor.constraint(equalToConstant: colorGridHeight),
             
-            undoBtn.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
-            undoBtn.trailingAnchor.constraint(equalTo: toolBar.centerXAnchor, constant: -8),
-            undoBtn.bottomAnchor.constraint(equalTo: saveBtn.topAnchor, constant: -12),
-            undoBtn.heightAnchor.constraint(equalToConstant: 40),
+            undoBtn.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            undoBtn.trailingAnchor.constraint(equalTo: contentView.centerXAnchor, constant: -6),
+            undoBtn.topAnchor.constraint(equalTo: colorGrid.bottomAnchor, constant: 20),
+            undoBtn.heightAnchor.constraint(equalToConstant: 44),
             
-            saveBtn.leadingAnchor.constraint(equalTo: toolBar.centerXAnchor, constant: 8),
-            saveBtn.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor, constant: -16),
-            saveBtn.bottomAnchor.constraint(equalTo: toolBar.bottomAnchor, constant: -20),
-            saveBtn.heightAnchor.constraint(equalToConstant: 40)
+            saveBtn.leadingAnchor.constraint(equalTo: contentView.centerXAnchor, constant: 6),
+            saveBtn.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            saveBtn.topAnchor.constraint(equalTo: undoBtn.topAnchor),
+            saveBtn.heightAnchor.constraint(equalToConstant: 44),
+            
+            contentView.bottomAnchor.constraint(equalTo: saveBtn.bottomAnchor, constant: 20)
         ])
+        
+        toolBar.contentSize = CGSize(width: 220, height: colorGridHeight + 380)
     }
     
     private func setupColorFillTools() {
         for subview in toolBar.subviews {
             subview.removeFromSuperview()
         }
+        colorButtons.removeAll()
+        
+        let contentView = UIView()
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        toolBar.addSubview(contentView)
+        
+        NSLayoutConstraint.activate([
+            contentView.topAnchor.constraint(equalTo: toolBar.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor),
+            contentView.widthAnchor.constraint(equalTo: toolBar.widthAnchor)
+        ])
         
         let importBtn = UIButton(type: .system)
         importBtn.setTitle("导入图片", for: .normal)
-        importBtn.titleLabel?.font = Theme.Font.bold(size: 16)
+        importBtn.titleLabel?.font = Theme.Font.bold(size: 18)
         importBtn.setTitleColor(Theme.brightWhite, for: .normal)
         importBtn.backgroundColor = Theme.electricBlue
         importBtn.layer.cornerRadius = 12
         importBtn.translatesAutoresizingMaskIntoConstraints = false
         importBtn.addTarget(self, action: #selector(importImage), for: .touchUpInside)
-        toolBar.addSubview(importBtn)
+        contentView.addSubview(importBtn)
         
         let resetBtn = UIButton(type: .system)
         resetBtn.setTitle("重置轮廓", for: .normal)
-        resetBtn.titleLabel?.font = Theme.Font.bold(size: 16)
+        resetBtn.titleLabel?.font = Theme.Font.bold(size: 18)
         resetBtn.setTitleColor(Theme.brightWhite, for: .normal)
-        resetBtn.backgroundColor = UIColor.orange.withAlphaComponent(0.7)
+        resetBtn.backgroundColor = UIColor.orange
         resetBtn.layer.cornerRadius = 12
         resetBtn.translatesAutoresizingMaskIntoConstraints = false
         resetBtn.addTarget(self, action: #selector(resetOutline), for: .touchUpInside)
-        toolBar.addSubview(resetBtn)
+        contentView.addSubview(resetBtn)
         
         let colorLabel = UILabel()
         colorLabel.text = "填色颜色"
-        colorLabel.font = Theme.Font.bold(size: 14)
+        colorLabel.font = Theme.Font.bold(size: 16)
         colorLabel.textColor = Theme.brightWhite
         colorLabel.translatesAutoresizingMaskIntoConstraints = false
-        toolBar.addSubview(colorLabel)
+        contentView.addSubview(colorLabel)
         
-        let colorStack = UIStackView()
-        colorStack.axis = .horizontal
-        colorStack.spacing = 8
-        colorStack.distribution = .fillEqually
-        colorStack.translatesAutoresizingMaskIntoConstraints = false
-        toolBar.addSubview(colorStack)
+        let colorGrid = UIView()
+        colorGrid.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(colorGrid)
         
-        for (index, color) in colors.prefix(10).enumerated() {
-            let colorBtn = UIButton()
-            colorBtn.backgroundColor = color
-            colorBtn.layer.cornerRadius = 15
-            colorBtn.layer.borderWidth = 2
-            colorBtn.layer.borderColor = currentColor == color ? Theme.neonPink.cgColor : UIColor.clear.cgColor
-            colorBtn.tag = index
-            colorBtn.addTarget(self, action: #selector(colorSelected(_:)), for: .touchUpInside)
-            colorStack.addArrangedSubview(colorBtn)
+        let cols = 4
+        let spacing: CGFloat = 8
+        let btnSize: CGFloat = 40
+        
+        for (index, color) in colors.enumerated() {
+            let row = index / cols
+            let col = index % cols
+            
+            let btn = UIButton()
+            btn.backgroundColor = color
+            btn.layer.cornerRadius = btnSize / 2
+            btn.layer.borderWidth = currentColor.isEqual(color) ? 4 : 2
+            btn.layer.borderColor = currentColor.isEqual(color) ? Theme.neonPink.cgColor : UIColor.white.withAlphaComponent(0.5).cgColor
+            btn.tag = index
+            btn.translatesAutoresizingMaskIntoConstraints = false
+            btn.addTarget(self, action: #selector(colorSelected(_:)), for: .touchUpInside)
+            colorGrid.addSubview(btn)
+            colorButtons.append(btn)
+            
+            NSLayoutConstraint.activate([
+                btn.leadingAnchor.constraint(equalTo: colorGrid.leadingAnchor, constant: CGFloat(col) * (btnSize + spacing)),
+                btn.topAnchor.constraint(equalTo: colorGrid.topAnchor, constant: CGFloat(row) * (btnSize + spacing)),
+                btn.widthAnchor.constraint(equalToConstant: btnSize),
+                btn.heightAnchor.constraint(equalToConstant: btnSize)
+            ])
         }
+        
+        let rows = (colors.count + cols - 1) / cols
+        let colorGridHeight = CGFloat(rows) * (btnSize + spacing) - spacing
         
         let saveBtn = UIButton(type: .system)
         saveBtn.setTitle("保存作品", for: .normal)
-        saveBtn.titleLabel?.font = Theme.Font.bold(size: 16)
+        saveBtn.titleLabel?.font = Theme.Font.bold(size: 18)
         saveBtn.setTitleColor(Theme.brightWhite, for: .normal)
         saveBtn.backgroundColor = Theme.neonPink
         saveBtn.layer.cornerRadius = 12
         saveBtn.translatesAutoresizingMaskIntoConstraints = false
         saveBtn.addTarget(self, action: #selector(saveAction), for: .touchUpInside)
-        toolBar.addSubview(saveBtn)
+        contentView.addSubview(saveBtn)
         
         NSLayoutConstraint.activate([
-            importBtn.topAnchor.constraint(equalTo: toolBar.topAnchor, constant: 20),
-            importBtn.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
-            importBtn.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor, constant: -16),
+            importBtn.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
+            importBtn.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            importBtn.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
             importBtn.heightAnchor.constraint(equalToConstant: 50),
             
             resetBtn.topAnchor.constraint(equalTo: importBtn.bottomAnchor, constant: 12),
-            resetBtn.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
-            resetBtn.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor, constant: -16),
+            resetBtn.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            resetBtn.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
             resetBtn.heightAnchor.constraint(equalToConstant: 50),
             
             colorLabel.topAnchor.constraint(equalTo: resetBtn.bottomAnchor, constant: 24),
-            colorLabel.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
+            colorLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
             
-            colorStack.topAnchor.constraint(equalTo: colorLabel.bottomAnchor, constant: 8),
-            colorStack.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
-            colorStack.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor, constant: -16),
-            colorStack.heightAnchor.constraint(equalToConstant: 30),
+            colorGrid.topAnchor.constraint(equalTo: colorLabel.bottomAnchor, constant: 12),
+            colorGrid.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            colorGrid.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            colorGrid.heightAnchor.constraint(equalToConstant: colorGridHeight),
             
-            saveBtn.leadingAnchor.constraint(equalTo: toolBar.leadingAnchor, constant: 16),
-            saveBtn.trailingAnchor.constraint(equalTo: toolBar.trailingAnchor, constant: -16),
-            saveBtn.bottomAnchor.constraint(equalTo: toolBar.bottomAnchor, constant: -20),
-            saveBtn.heightAnchor.constraint(equalToConstant: 50)
+            saveBtn.topAnchor.constraint(equalTo: colorGrid.bottomAnchor, constant: 20),
+            saveBtn.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            saveBtn.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            saveBtn.heightAnchor.constraint(equalToConstant: 50),
+            
+            contentView.bottomAnchor.constraint(equalTo: saveBtn.bottomAnchor, constant: 20)
         ])
+        
+        toolBar.contentSize = CGSize(width: 220, height: colorGridHeight + 280)
     }
     
     @objc private func switchMode() {
@@ -338,9 +487,28 @@ class DrawingBoardViewController: UIViewController {
         }
     }
     
+    @objc private func brushTypeSelected(_ button: UIButton) {
+        let index = button.tag
+        if let brushType = BrushType(rawValue: index) {
+            currentBrushType = brushType
+            canvasView.setBrushType(brushType)
+            
+            for (i, btn) in brushButtons.enumerated() {
+                btn.backgroundColor = i == index ? Theme.neonPink.withAlphaComponent(0.8) : Theme.cardBackground
+                btn.layer.borderColor = i == index ? Theme.neonPink.cgColor : Theme.mutedGray.cgColor
+            }
+            
+            animateButtonFeedback(button)
+        }
+    }
+    
     @objc private func brushSizeChanged(_ slider: UISlider) {
         currentBrushSize = CGFloat(slider.value)
         canvasView.setBrushSize(currentBrushSize)
+        
+        if let sizeLabel = toolBar.subviews.first?.subviews.compactMap({ $0 as? UILabel }).first(where: { $0.text?.contains("画笔大小") == false && $0.textColor == Theme.electricBlue }) {
+            sizeLabel.text = "\(Int(currentBrushSize))"
+        }
     }
     
     @objc private func colorSelected(_ button: UIButton) {
@@ -349,10 +517,36 @@ class DrawingBoardViewController: UIViewController {
             currentColor = colors[index]
             canvasView.setColor(currentColor)
             
-            for case let btn as UIButton in toolBar.subviews {
-                if btn.backgroundColor?.isEqual(colors.first { $0.isEqual(btn.backgroundColor) }) == true {
-                    btn.layer.borderColor = currentColor.isEqual(btn.backgroundColor) ? Theme.neonPink.cgColor : UIColor.clear.cgColor
-                }
+            currentColorPreview.backgroundColor = currentColor
+            
+            for (i, btn) in colorButtons.enumerated() {
+                let isSelected = i == index
+                btn.layer.borderWidth = isSelected ? 4 : 2
+                btn.layer.borderColor = isSelected ? Theme.neonPink.cgColor : UIColor.white.withAlphaComponent(0.5).cgColor
+            }
+            
+            animateColorButtonFeedback(button)
+        }
+    }
+    
+    private func animateButtonFeedback(_ button: UIButton) {
+        UIView.animate(withDuration: 0.1, animations: {
+            button.transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
+        }) { _ in
+            UIView.animate(withDuration: 0.1) {
+                button.transform = .identity
+            }
+        }
+    }
+    
+    private func animateColorButtonFeedback(_ button: UIButton) {
+        UIView.animate(withDuration: 0.15, animations: {
+            button.transform = CGAffineTransform(scaleX: 1.3, y: 1.3)
+            button.alpha = 0.7
+        }) { _ in
+            UIView.animate(withDuration: 0.15) {
+                button.transform = .identity
+                button.alpha = 1.0
             }
         }
     }
