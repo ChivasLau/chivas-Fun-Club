@@ -16,18 +16,29 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Install xcodegen
-      run: brew install xcodegen
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.2'
+    
+    - name: Install tools
+      run: |
+        brew install xcodegen
+        gem install xcpretty
+    
+    - name: Debug - List files
+      run: |
+        ls -la
+        ls -la "华仔趣玩社/" || echo "Source folder check"
     
     - name: Create project.yml
       run: |
         cat > project.yml << 'EOF'
-        name: 华仔趣玩社
+        name: HuaZaiApp
         options:
           bundleIdPrefix: com.huazai
           deploymentTarget:
             iOS: "12.0"
-          xcodeVersion: "15.0"
         
         settings:
           base:
@@ -38,62 +49,47 @@ jobs:
             CODE_SIGNING_ALLOWED: NO
         
         targets:
-          华仔趣玩社:
+          HuaZaiApp:
             type: application
             platform: iOS
             sources:
               - path: 华仔趣玩社
-                excludes:
-                  - "**/.DS_Store"
             settings:
               base:
                 INFOPLIST_FILE: 华仔趣玩社/Info.plist
                 PRODUCT_BUNDLE_IDENTIFIER: com.huazai.quwan
-                LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
-            info:
-              path: 华仔趣玩社/Info.plist
+                PRODUCT_NAME: 华仔趣玩社
         EOF
+        cat project.yml
     
     - name: Generate Xcode Project
       run: xcodegen generate
     
     - name: Build Archive
       run: |
+        set -o pipefail
         xcodebuild \
-          -project 华仔趣玩社.xcodeproj \
-          -scheme 华仔趣玩社 \
+          -project HuaZaiApp.xcodeproj \
+          -scheme HuaZaiApp \
           -configuration Release \
           -destination 'generic/platform=iOS' \
-          -archivePath build/华仔趣玩社.xcarchive \
+          -archivePath build/HuaZaiApp.xcarchive \
           archive \
           CODE_SIGNING_ALLOWED=NO \
-          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGNING_REQUIRED=NO \
+          | xcpretty
     
     - name: Create Unsigned IPA
       run: |
         mkdir -p Payload
-        cp -r build/华仔趣玩社.xcarchive/Products/Applications/华仔趣玩社.app Payload/
-        zip -r 华仔趣玩社-unsigned.ipa Payload
-        echo "✅ IPA created: $(ls -lh 华仔趣玩社-unsigned.ipa)"
+        APP_PATH=$(find build/HuaZaiApp.xcarchive/Products/Applications -name "*.app" | head -1)
+        cp -r "$APP_PATH" Payload/
+        zip -r HuaZaiApp.ipa Payload
+        ls -lh HuaZaiApp.ipa
     
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: 华仔趣玩社-unsigned-IPA
-        path: 华仔趣玩社-unsigned.ipa
+        name: HuaZaiApp-IPA
+        path: HuaZaiApp.ipa
         retention-days: 30
-        if-no-files-found: error
-    
-    - name: Build Summary
-      run: |
-        echo "================================"
-        echo "✅ 构建成功！"
-        echo "================================"
-        echo ""
-        echo "📱 IPA 文件: 华仔趣玩社-unsigned.ipa"
-        echo "📦 文件大小: $(du -h 华仔趣玩社-unsigned.ipa | cut -f1)"
-        echo ""
-        echo "⚠️  此 IPA 未签名，需要使用以下方式安装："
-        echo "   - AltStore (免费 Apple ID 签名)"
-        echo "   - Sideloadly (免费 Apple ID 签名)"
-        echo "   - 自签名证书"
