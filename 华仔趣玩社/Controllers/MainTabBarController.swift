@@ -67,12 +67,15 @@ class MainTabBarController: UITabBarController {
         let quWan = UINavigationController(rootViewController: QuWanViewController())
         quWan.tabBarItem = UITabBarItem(title: "趣玩", image: nil, tag: 1)
         
+        let aiTools = UINavigationController(rootViewController: AIToolsViewController())
+        aiTools.tabBarItem = UITabBarItem(title: "AI", image: nil, tag: 2)
+        
         let quZuo = UINavigationController(rootViewController: QuZuoViewController())
-        quZuo.tabBarItem = UITabBarItem(title: "趣做", image: nil, tag: 2)
+        quZuo.tabBarItem = UITabBarItem(title: "趣做", image: nil, tag: 3)
         
         let quDu = UINavigationController(rootViewController: QuDuViewController())
-        quDu.tabBarItem = UITabBarItem(title: "趣读", image: nil, tag: 3)
+        quDu.tabBarItem = UITabBarItem(title: "趣读", image: nil, tag: 4)
         
-        viewControllers = [quKan, quWan, quZuo, quDu]
+        viewControllers = [quKan, quWan, aiTools, quZuo, quDu]
     }
 }

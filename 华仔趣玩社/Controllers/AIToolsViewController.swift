@@ -1,25 +1,10 @@
 import UIKit
 
-class QuDuViewController: UIViewController {
+class AIToolsViewController: UIViewController {
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        
-        let homeVC = QuDuHomeViewController()
-        addChild(homeVC)
-        view.addSubview(homeVC.view)
-        homeVC.view.frame = view.bounds
-        homeVC.didMove(toParent: self)
-        
-        title = "趣读"
-    }
-}
-
-class QuDuHomeViewController: UIViewController {
-    
-    private let books: [(title: String, subtitle: String, url: String, icon: String, color: UIColor)] = [
-        ("番茄小说", "海量免费小说阅读", "https://fanqienovel.com/", "📚", UIColor(hex: "FF5722")),
-        ("番茄作家", "创作你的故事", "https://fanqienovel.com/main/writer/login", "✍️", UIColor(hex: "E91E63"))
+    private let tools: [(title: String, subtitle: String, url: String, icon: String, color: UIColor)] = [
+        ("豆包AI", "抖音旗下AI助手", "https://www.doubao.com/chat/?channel=dyK7x", "🤖", UIColor(hex: "00D4AA")),
+        ("智谱AI", "清华技术视频生成", "https://chatglm.cn/video?utm_source=ai-bot.cn&lang=zh", "🧠", UIColor(hex: "6366F1"))
     ]
     
     override func viewDidLoad() {
@@ -33,7 +18,7 @@ class QuDuHomeViewController: UIViewController {
         view.addSubview(gradientBg)
         
         let titleLabel = UILabel()
-        titleLabel.text = "趣读天地"
+        titleLabel.text = "AI工具箱"
         titleLabel.font = Theme.Font.bold(size: 32)
         titleLabel.textColor = Theme.brightWhite
         titleLabel.textAlignment = .center
@@ -41,7 +26,7 @@ class QuDuHomeViewController: UIViewController {
         view.addSubview(titleLabel)
         
         let subtitleLabel = UILabel()
-        subtitleLabel.text = "阅读与创作"
+        subtitleLabel.text = "智能助手，创意无限"
         subtitleLabel.font = Theme.Font.regular(size: 16)
         subtitleLabel.textColor = Theme.mutedGray
         subtitleLabel.textAlignment = .center
@@ -55,13 +40,13 @@ class QuDuHomeViewController: UIViewController {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stackView)
         
-        for book in books {
-            let card = createBookCard(book: book)
+        for tool in tools {
+            let card = createToolCard(tool: tool)
             stackView.addArrangedSubview(card)
         }
         
         let tipLabel = UILabel()
-        tipLabel.text = "💡 登录后会自动保存状态"
+        tipLabel.text = "💡 提示：登录后会自动保存状态"
         tipLabel.font = Theme.Font.regular(size: 14)
         tipLabel.textColor = Theme.mutedGray
         tipLabel.textAlignment = .center
@@ -84,11 +69,11 @@ class QuDuHomeViewController: UIViewController {
             tipLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
         
-        title = "趣读"
+        title = "AI工具"
     }
     
-    private func createBookCard(book: (title: String, subtitle: String, url: String, icon: String, color: UIColor)) -> UIView {
-        let cardColor = book.color
+    private func createToolCard(tool: (title: String, subtitle: String, url: String, icon: String, color: UIColor)) -> UIView {
+        let cardColor = tool.color
         
         let card = UIView()
         card.backgroundColor = Theme.cardBackground.withAlphaComponent(0.6)
@@ -101,25 +86,25 @@ class QuDuHomeViewController: UIViewController {
         
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
         card.addGestureRecognizer(tapGesture)
-        card.tag = books.firstIndex(where: { $0.title == book.title }) ?? 0
+        card.tag = tools.firstIndex(where: { $0.title == tool.title }) ?? 0
         card.isUserInteractionEnabled = true
         
         let iconLabel = UILabel()
-        iconLabel.text = book.icon
+        iconLabel.text = tool.icon
         iconLabel.font = UIFont.systemFont(ofSize: 56)
         iconLabel.textAlignment = .center
         iconLabel.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(iconLabel)
         
         let titleLabel = UILabel()
-        titleLabel.text = book.title
+        titleLabel.text = tool.title
         titleLabel.font = Theme.Font.bold(size: 26)
         titleLabel.textColor = Theme.brightWhite
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(titleLabel)
         
         let subtitleLabel = UILabel()
-        subtitleLabel.text = book.subtitle
+        subtitleLabel.text = tool.subtitle
         subtitleLabel.font = Theme.Font.regular(size: 15)
         subtitleLabel.textColor = cardColor
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -155,10 +140,10 @@ class QuDuHomeViewController: UIViewController {
     
     @objc private func cardTapped(_ gesture: UITapGestureRecognizer) {
         guard let index = gesture.view?.tag else { return }
-        let book = books[index]
+        let tool = tools[index]
         
-        let webVC = QuDuWebViewController()
-        webVC.configure(title: book.title, url: book.url, themeColor: book.color)
+        let webVC = AIWebViewViewController()
+        webVC.configure(title: tool.title, url: tool.url, themeColor: tool.color)
         navigationController?.pushViewController(webVC, animated: true)
     }
 }
