@@ -1,0 +1,99 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install xcodegen
+      run: brew install xcodegen
+    
+    - name: Create project.yml
+      run: |
+        cat > project.yml << 'EOF'
+        name: 华仔趣玩社
+        options:
+          bundleIdPrefix: com.huazai
+          deploymentTarget:
+            iOS: "12.0"
+          xcodeVersion: "15.0"
+        
+        settings:
+          base:
+            SWIFT_VERSION: "5.0"
+            TARGETED_DEVICE_FAMILY: "1,2"
+            CODE_SIGN_IDENTITY: "-"
+            CODE_SIGNING_REQUIRED: NO
+            CODE_SIGNING_ALLOWED: NO
+        
+        targets:
+          华仔趣玩社:
+            type: application
+            platform: iOS
+            sources:
+              - path: 华仔趣玩社
+                excludes:
+                  - "**/.DS_Store"
+            settings:
+              base:
+                INFOPLIST_FILE: 华仔趣玩社/Info.plist
+                PRODUCT_BUNDLE_IDENTIFIER: com.huazai.quwan
+                LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
+            info:
+              path: 华仔趣玩社/Info.plist
+        EOF
+    
+    - name: Generate Xcode Project
+      run: xcodegen generate
+    
+    - name: Build Archive
+      run: |
+        xcodebuild \
+          -project 华仔趣玩社.xcodeproj \
+          -scheme 华仔趣玩社 \
+          -configuration Release \
+          -destination 'generic/platform=iOS' \
+          -archivePath build/华仔趣玩社.xcarchive \
+          archive \
+          CODE_SIGNING_ALLOWED=NO \
+          CODE_SIGNING_REQUIRED=NO
+    
+    - name: Create Unsigned IPA
+      run: |
+        mkdir -p Payload
+        cp -r build/华仔趣玩社.xcarchive/Products/Applications/华仔趣玩社.app Payload/
+        zip -r 华仔趣玩社-unsigned.ipa Payload
+        echo "✅ IPA created: $(ls -lh 华仔趣玩社-unsigned.ipa)"
+    
+    - name: Upload IPA Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 华仔趣玩社-unsigned-IPA
+        path: 华仔趣玩社-unsigned.ipa
+        retention-days: 30
+        if-no-files-found: error
+    
+    - name: Build Summary
+      run: |
+        echo "================================"
+        echo "✅ 构建成功！"
+        echo "================================"
+        echo ""
+        echo "📱 IPA 文件: 华仔趣玩社-unsigned.ipa"
+        echo "📦 文件大小: $(du -h 华仔趣玩社-unsigned.ipa | cut -f1)"
+        echo ""
+        echo "⚠️  此 IPA 未签名，需要使用以下方式安装："
+        echo "   - AltStore (免费 Apple ID 签名)"
+        echo "   - Sideloadly (免费 Apple ID 签名)"
+        echo "   - 自签名证书"
