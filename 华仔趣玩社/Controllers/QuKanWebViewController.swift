@@ -73,10 +73,6 @@ class QuKanWebViewController: UIViewController {
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
         
-        if #available(iOS 13.0, *) {
-            config.defaultWebpagePreferences.allowsContentJavaScript = true
-        }
-        
         let preferences = WKPreferences()
         preferences.javaScriptEnabled = true
         preferences.javaScriptCanOpenWindowsAutomatically = true
@@ -265,7 +261,7 @@ class QuKanWebViewController: UIViewController {
     }
     
     private func toggleDesktopMode() {
-        isDesktopMode.toggle()
+        isDesktopMode = !isDesktopMode
         
         if isDesktopMode {
             webView.customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"

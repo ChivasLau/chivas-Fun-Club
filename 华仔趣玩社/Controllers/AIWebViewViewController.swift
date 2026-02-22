@@ -30,7 +30,14 @@ class AIWebViewViewController: UIViewController {
         gradientBg.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(gradientBg)
         
-        let webConfiguration = createWebViewConfiguration()
+        let webConfiguration = WKWebViewConfiguration()
+        webConfiguration.allowsInlineMediaPlayback = true
+        webConfiguration.mediaTypesRequiringUserActionForPlayback = []
+        
+        let preferences = WKPreferences()
+        preferences.javaScriptEnabled = true
+        preferences.javaScriptCanOpenWindowsAutomatically = true
+        webConfiguration.preferences = preferences
         
         webView = WKWebView(frame: .zero, configuration: webConfiguration)
         webView.navigationDelegate = self
@@ -65,36 +72,6 @@ class AIWebViewViewController: UIViewController {
         ])
         
         webView.addObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress), options: .new, context: nil)
-    }
-    
-    private func createWebViewConfiguration() -> WKWebViewConfiguration {
-        let config = WKWebViewConfiguration()
-        
-        config.allowsInlineMediaPlayback = true
-        config.mediaTypesRequiringUserActionForPlayback = []
-        
-        if #available(iOS 13.0, *) {
-            config.defaultWebpagePreferences.allowsContentJavaScript = true
-        }
-        
-        let preferences = WKPreferences()
-        preferences.javaScriptEnabled = true
-        preferences.javaScriptCanOpenWindowsAutomatically = true
-        config.preferences = preferences
-        
-        let userContentController = WKUserContentController()
-        
-        let cookieScript = WKUserScript(
-            source: "navigator.cookieEnabled = true;",
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: false
-        )
-        userContentController.addUserScript(cookieScript)
-        
-        config.userContentController = userContentController
-        config.allowsAirPlayForMediaPlayback = true
-        
-        return config
     }
     
     private func setupNavigationBar() {
@@ -183,7 +160,7 @@ class AIWebViewViewController: UIViewController {
     }
     
     private func toggleDesktopMode() {
-        isDesktopMode.toggle()
+        isDesktopMode = !isDesktopMode
         
         if isDesktopMode {
             webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -195,8 +172,15 @@ class AIWebViewViewController: UIViewController {
     }
     
     private func openInSafari() {
-        guard let url = webView.url ?? URL(string: pageURL) else { return }
-        UIApplication.shared.open(url)
+        let url: URL?
+        if let currentUrl = webView.url {
+            url = currentUrl
+        } else {
+            url = URL(string: pageURL)
+        }
+        if let url = url {
+            UIApplication.shared.open(url)
+        }
     }
     
     private func loadWebView() {
