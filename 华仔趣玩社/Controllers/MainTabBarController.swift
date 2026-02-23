@@ -61,21 +61,21 @@ class MainTabBarController: UITabBarController {
     }
     
     private func setupViewControllers() {
+        let quSu = UINavigationController(rootViewController: QuSuViewController())
+        quSu.tabBarItem = UITabBarItem(title: "趣速", image: nil, tag: 0)
+        
         let quKan = UINavigationController(rootViewController: QuKanViewController())
-        quKan.tabBarItem = UITabBarItem(title: "趣看", image: nil, tag: 0)
+        quKan.tabBarItem = UITabBarItem(title: "趣看", image: nil, tag: 1)
         
         let quWan = UINavigationController(rootViewController: QuWanViewController())
-        quWan.tabBarItem = UITabBarItem(title: "趣玩", image: nil, tag: 1)
+        quWan.tabBarItem = UITabBarItem(title: "趣玩", image: nil, tag: 2)
         
-        let aiTools = UINavigationController(rootViewController: AIToolsViewController())
-        aiTools.tabBarItem = UITabBarItem(title: "AI", image: nil, tag: 2)
+        let quSearch = UINavigationController(rootViewController: QuSearchViewController())
+        quSearch.tabBarItem = UITabBarItem(title: "趣搜索", image: nil, tag: 3)
         
-        let quZuo = UINavigationController(rootViewController: QuZuoViewController())
-        quZuo.tabBarItem = UITabBarItem(title: "趣做", image: nil, tag: 3)
+        let quMe = UINavigationController(rootViewController: QuMeViewController())
+        quMe.tabBarItem = UITabBarItem(title: "趣我", image: nil, tag: 4)
         
-        let quDu = UINavigationController(rootViewController: QuDuViewController())
-        quDu.tabBarItem = UITabBarItem(title: "趣读", image: nil, tag: 4)
-        
-        viewControllers = [quKan, quWan, aiTools, quZuo, quDu]
+        viewControllers = [quSu, quKan, quWan, quSearch, quMe]
     }
 }
