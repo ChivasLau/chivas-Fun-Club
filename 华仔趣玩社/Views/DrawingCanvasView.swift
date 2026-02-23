@@ -85,7 +85,8 @@ class DrawingCanvasView: UIView {
     func clear() {
         saveForUndo()
         drawingImage = nil
-        paths.removeAll()
+        backgroundImage = nil
+        undoStack.removeAll()
         setNeedsDisplay()
     }
     
