@@ -10,16 +10,17 @@ class QuSearchViewController: UIViewController {
     private var searchTextField: UITextField!
     private var historyStackView: UIStackView!
     
-    private let categories: [(String, Bool)] = [
-        ("全部分类", true),
-        ("趣看趣读", true),
-        ("趣玩", true),
-        ("趣办", true),
-        ("趣家", true),
-        ("趣学", true),
-        ("自收藏", true),
-        ("自制搜索", false)
+    private let searchTools: [(String, String, Bool, String?)] = [
+        ("短剧搜索", "短搜搜", true, nil),
+        ("视频搜索", "影迷搜", true, nil),
+        ("视频搜索", "片搜搜", true, nil),
+        ("文档搜索", "豆丁搜", true, nil),
+        ("文档搜索", "智库搜", true, nil),
+        ("云盘搜索", "盘搜搜", true, nil),
+        ("云盘搜索", "云盘搜", true, nil)
     ]
+    
+    private var currentCategory = "全部"
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -206,20 +207,34 @@ class QuSearchViewController: UIViewController {
         view.addSubview(sideBarView)
         
         let titleLabel = UILabel()
-        titleLabel.text = "分类筛选"
+        titleLabel.text = "搜索工具"
         titleLabel.font = Theme.Font.bold(size: 20)
         titleLabel.textColor = Theme.brightWhite
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         sideBarView.addSubview(titleLabel)
         
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        sideBarView.addSubview(scrollView)
+        
         let categoryStack = UIStackView()
         categoryStack.axis = .vertical
-        categoryStack.spacing = 16
+        categoryStack.spacing = 8
         categoryStack.translatesAutoresizingMaskIntoConstraints = false
-        sideBarView.addSubview(categoryStack)
+        scrollView.addSubview(categoryStack)
         
-        for (index, category) in categories.enumerated() {
-            let itemView = createCategoryItem(name: category.0, enabled: category.1, index: index)
+        var lastCategory = ""
+        for (index, tool) in searchTools.enumerated() {
+            if tool.0 != lastCategory {
+                lastCategory = tool.0
+                let categoryLabel = UILabel()
+                categoryLabel.text = "— \(tool.0) —"
+                categoryLabel.font = Theme.Font.bold(size: 14)
+                categoryLabel.textColor = Theme.neonPink
+                categoryLabel.translatesAutoresizingMaskIntoConstraints = false
+                categoryStack.addArrangedSubview(categoryLabel)
+            }
+            let itemView = createSearchToolItem(name: tool.1, enabled: tool.2, index: index)
             categoryStack.addArrangedSubview(itemView)
         }
         
@@ -228,9 +243,16 @@ class QuSearchViewController: UIViewController {
             titleLabel.leadingAnchor.constraint(equalTo: sideBarView.leadingAnchor, constant: 20),
             titleLabel.trailingAnchor.constraint(equalTo: sideBarView.trailingAnchor, constant: -20),
             
-            categoryStack.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 24),
-            categoryStack.leadingAnchor.constraint(equalTo: sideBarView.leadingAnchor, constant: 20),
-            categoryStack.trailingAnchor.constraint(equalTo: sideBarView.trailingAnchor, constant: -20)
+            scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            scrollView.leadingAnchor.constraint(equalTo: sideBarView.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: sideBarView.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: sideBarView.bottomAnchor, constant: -20),
+            
+            categoryStack.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 8),
+            categoryStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 20),
+            categoryStack.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -20),
+            categoryStack.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -8),
+            categoryStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -40)
         ])
         
         NSLayoutConstraint.activate([
@@ -241,7 +263,7 @@ class QuSearchViewController: UIViewController {
         ])
     }
     
-    private func createCategoryItem(name: String, enabled: Bool, index: Int) -> UIView {
+    private func createSearchToolItem(name: String, enabled: Bool, index: Int) -> UIView {
         let view = UIView()
         
         let nameLabel = UILabel()
@@ -252,7 +274,7 @@ class QuSearchViewController: UIViewController {
         view.addSubview(nameLabel)
         
         if enabled {
-            let tapGesture = UITapGestureRecognizer(target: self, action: #selector(categoryTapped(_:)))
+            let tapGesture = UITapGestureRecognizer(target: self, action: #selector(searchToolTapped(_:)))
             view.addGestureRecognizer(tapGesture)
             view.isUserInteractionEnabled = true
             view.tag = index
@@ -305,12 +327,12 @@ class QuSearchViewController: UIViewController {
         }
     }
     
-    @objc private func categoryTapped(_ gesture: UITapGestureRecognizer) {
+    @objc private func searchToolTapped(_ gesture: UITapGestureRecognizer) {
         guard let index = gesture.view?.tag else { return }
-        let category = categories[index]
+        let tool = searchTools[index]
         hideSideBar()
         
-        let alert = UIAlertController(title: category.0, message: "正在开发中，敬请期待", preferredStyle: .alert)
+        let alert = UIAlertController(title: tool.1, message: "正在使用「\(tool.1)」搜索...", preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "好的", style: .default))
         present(alert, animated: true)
     }

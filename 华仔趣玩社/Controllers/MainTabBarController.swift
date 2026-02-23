@@ -44,10 +44,6 @@ class MainTabBarController: UITabBarController {
                 .foregroundColor: Theme.brightWhite,
                 .font: Theme.Font.bold(size: 18)
             ]
-            navAppearance.largeTitleTextAttributes = [
-                .foregroundColor: Theme.brightWhite,
-                .font: Theme.Font.bold(size: 34)
-            ]
             UINavigationBar.appearance().standardAppearance = navAppearance
             UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
         } else {
@@ -61,21 +57,18 @@ class MainTabBarController: UITabBarController {
     }
     
     private func setupViewControllers() {
-        let quSu = UINavigationController(rootViewController: QuSuViewController())
-        quSu.tabBarItem = UITabBarItem(title: "趣速", image: nil, tag: 0)
+        let quHome = UINavigationController(rootViewController: QuHomeViewController())
+        quHome.tabBarItem = UITabBarItem(title: "趣首页", image: nil, tag: 0)
         
-        let quKan = UINavigationController(rootViewController: QuKanViewController())
-        quKan.tabBarItem = UITabBarItem(title: "趣看", image: nil, tag: 1)
-        
-        let quWan = UINavigationController(rootViewController: QuWanViewController())
-        quWan.tabBarItem = UITabBarItem(title: "趣玩", image: nil, tag: 2)
+        let quCategory = UINavigationController(rootViewController: QuCategoryViewController())
+        quCategory.tabBarItem = UITabBarItem(title: "趣分类", image: nil, tag: 1)
         
         let quSearch = UINavigationController(rootViewController: QuSearchViewController())
-        quSearch.tabBarItem = UITabBarItem(title: "趣搜索", image: nil, tag: 3)
+        quSearch.tabBarItem = UITabBarItem(title: "趣搜索", image: nil, tag: 2)
         
         let quMe = UINavigationController(rootViewController: QuMeViewController())
-        quMe.tabBarItem = UITabBarItem(title: "趣我", image: nil, tag: 4)
+        quMe.tabBarItem = UITabBarItem(title: "趣我", image: nil, tag: 3)
         
-        viewControllers = [quSu, quKan, quWan, quSearch, quMe]
+        viewControllers = [quHome, quCategory, quSearch, quMe]
     }
 }
