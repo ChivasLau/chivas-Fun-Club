@@ -49,7 +49,7 @@ jobs:
             CODE_SIGNING_ALLOWED: NO
         
         targets:
-          华仔趣玩社:
+          HuaZaiQuWan:
             type: application
             platform: iOS
             sources:
@@ -58,8 +58,7 @@ jobs:
               base:
                 INFOPLIST_FILE: 华仔趣玩社/Info.plist
                 PRODUCT_BUNDLE_IDENTIFIER: com.huazai.quwan
-                PRODUCT_NAME: 华仔趣玩社
-                EXECUTABLE_NAME: 华仔趣玩社
+                PRODUCT_NAME: HuaZaiQuWan
         EOF
         cat project.yml
     
@@ -71,7 +70,7 @@ jobs:
         set -o pipefail
         xcodebuild \
           -project HuaZaiApp.xcodeproj \
-          -scheme 华仔趣玩社 \
+          -scheme HuaZaiQuWan \
           -configuration Release \
           -destination 'generic/platform=iOS' \
           -archivePath build/HuaZaiApp.xcarchive \
