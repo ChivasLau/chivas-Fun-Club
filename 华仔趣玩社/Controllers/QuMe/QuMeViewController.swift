@@ -17,6 +17,14 @@ class QuMeViewController: UIViewController {
         setupUI()
     }
     
+    override var prefersStatusBarHidden: Bool {
+        return true
+    }
+    
+    override var prefersHomeIndicatorAutoHidden: Bool {
+        return false
+    }
+    
     private func setupUI() {
         view.backgroundColor = Theme.gradientTop
         

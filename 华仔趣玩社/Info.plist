@@ -54,6 +54,8 @@
     <string>Dark</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <true/>
+    <key>UIStatusBarHidden</key>
+    <true/>
     <key>UIStatusBarStyle</key>
     <string>UIStatusBarStyleLightContent</string>
     <key>NSPhotoLibraryUsageDescription</key>

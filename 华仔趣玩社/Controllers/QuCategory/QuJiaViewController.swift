@@ -7,6 +7,14 @@ class QuJiaViewController: UIViewController {
         setupUI()
     }
     
+    override var prefersStatusBarHidden: Bool {
+        return true
+    }
+    
+    override var prefersHomeIndicatorAutoHidden: Bool {
+        return false
+    }
+    
     private func setupUI() {
         let gradientBg = GradientBackgroundView(frame: view.bounds)
         gradientBg.autoresizingMask = [.flexibleWidth, .flexibleHeight]

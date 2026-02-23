@@ -4,6 +4,7 @@ class QuWanViewController: UIViewController {
     
     private let games: [(String, String, String, UIColor, String)] = [
         ("宝贝画板", "自由绘画 & 填色乐园", "🎨", UIColor(hex: "A855F7"), "drawing"),
+        ("海报设计", "海报编辑 & 图片合成", "🖼️", UIColor(hex: "00D4AA"), "poster"),
         
         ("FRVR", "即点即玩游戏", "🎯", UIColor(hex: "FF6B6B"), "https://frvr.com/"),
         ("Jigsaw Planet", "在线拼图游戏", "🧩", UIColor(hex: "4ECDC4"), "https://www.jigsawplanet.com/"),
@@ -27,6 +28,14 @@ class QuWanViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+    }
+    
+    override var prefersStatusBarHidden: Bool {
+        return true
+    }
+    
+    override var prefersHomeIndicatorAutoHidden: Bool {
+        return false
     }
     
     private func setupUI() {
@@ -147,6 +156,9 @@ class QuWanViewController: UIViewController {
         if game.4 == "drawing" {
             let drawingVC = DrawingBoardViewController()
             navigationController?.pushViewController(drawingVC, animated: true)
+        } else if game.4 == "poster" {
+            let posterVC = PosterModeViewController()
+            navigationController?.pushViewController(posterVC, animated: true)
         } else {
             let webVC = QuWanWebViewController()
             webVC.configure(title: game.0, url: game.4, themeColor: game.3)

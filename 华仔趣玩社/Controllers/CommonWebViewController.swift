@@ -17,6 +17,14 @@ class CommonWebViewController: UIViewController {
         loadURL()
     }
     
+    override var prefersStatusBarHidden: Bool {
+        return true
+    }
+    
+    override var prefersHomeIndicatorAutoHidden: Bool {
+        return false
+    }
+    
     func configure(title: String, url: String, themeColor: UIColor? = nil) {
         self.pageTitle = title
         self.urlString = url

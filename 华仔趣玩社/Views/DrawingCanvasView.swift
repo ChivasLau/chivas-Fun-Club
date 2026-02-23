@@ -1,6 +1,24 @@
 import UIKit
 import AVFoundation
 
+enum DrawingMode: Int {
+    case freeDraw = 0
+    case colorFill = 1
+}
+
+enum BrushType: Int {
+    case normal = 0
+    case round = 1
+    case square = 2
+    case spray = 3
+    case highlighter = 4
+    case star = 5
+    case heart = 6
+    case triangle = 7
+    case diamond = 8
+    case rainbow = 9
+}
+
 class DrawingCanvasView: UIView {
     
     private var currentMode: DrawingMode = .freeDraw
@@ -11,12 +29,11 @@ class DrawingCanvasView: UIView {
     private var drawingImage: UIImage?
     private var backgroundImage: UIImage?
     
-    private var paths: [(path: UIBezierPath, color: UIColor, width: CGFloat, type: BrushType)] = []
-    private var currentPath: UIBezierPath?
     private var undoStack: [UIImage] = []
-    private let maxUndoCount = 20
+    private let maxUndoCount = 30
     
     private var lastPoint: CGPoint?
+    private var rainbowHue: CGFloat = 0
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -30,7 +47,6 @@ class DrawingCanvasView: UIView {
     
     private func setupView() {
         backgroundColor = .white
-        layer.cornerRadius = 12
         clipsToBounds = true
         
         let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
@@ -62,15 +78,14 @@ class DrawingCanvasView: UIView {
     func setBackgroundImage(_ image: UIImage) {
         backgroundImage = image
         drawingImage = nil
-        paths.removeAll()
         undoStack.removeAll()
         setNeedsDisplay()
     }
     
     func clear() {
+        saveForUndo()
         drawingImage = nil
         paths.removeAll()
-        undoStack.removeAll()
         setNeedsDisplay()
     }
     
@@ -78,6 +93,10 @@ class DrawingCanvasView: UIView {
         guard !undoStack.isEmpty else { return }
         drawingImage = undoStack.removeLast()
         setNeedsDisplay()
+    }
+    
+    func canUndo() -> Bool {
+        return !undoStack.isEmpty
     }
     
     func exportImage() -> UIImage? {
@@ -140,6 +159,16 @@ class DrawingCanvasView: UIView {
             drawSprayStroke(from: start, to: end)
         case .highlighter:
             drawHighlighterStroke(context: context, from: start, to: end)
+        case .star:
+            drawShapeStroke(from: start, to: end, shape: .star)
+        case .heart:
+            drawShapeStroke(from: start, to: end, shape: .heart)
+        case .triangle:
+            drawShapeStroke(from: start, to: end, shape: .triangle)
+        case .diamond:
+            drawShapeStroke(from: start, to: end, shape: .diamond)
+        case .rainbow:
+            drawRainbowStroke(context: context, from: start, to: end)
         }
         
         drawingImage = UIGraphicsGetImageFromCurrentImageContext()
@@ -181,7 +210,7 @@ class DrawingCanvasView: UIView {
     
     private func drawSprayStroke(from start: CGPoint, to end: CGPoint) {
         let distance = hypot(end.x - start.x, end.y - start.y)
-        let steps = max(Int(distance / 2), 1)
+        let steps = max(Int(distance / 3), 1)
         
         for step in 0...steps {
             let t = CGFloat(step) / CGFloat(steps)
@@ -212,6 +241,112 @@ class DrawingCanvasView: UIView {
         context?.addLine(to: end)
         context?.strokePath()
         context?.setBlendMode(.normal)
+    }
+    
+    private enum ShapeType {
+        case star, heart, triangle, diamond
+    }
+    
+    private func drawShapeStroke(from start: CGPoint, to end: CGPoint, shape: ShapeType) {
+        let distance = hypot(end.x - start.x, end.y - start.y)
+        let steps = max(Int(distance / (brushSize * 2)), 1)
+        
+        for step in 0...steps {
+            let t = CGFloat(step) / CGFloat(steps)
+            let x = start.x + (end.x - start.x) * t
+            let y = start.y + (end.y - start.y) * t
+            
+            let shapeSize = brushSize
+            let rect = CGRect(x: x - shapeSize/2, y: y - shapeSize/2, width: shapeSize, height: shapeSize)
+            
+            currentColor.setFill()
+            
+            switch shape {
+            case .star:
+                drawStar(in: rect)
+            case .heart:
+                drawHeart(in: rect)
+            case .triangle:
+                drawTriangle(in: rect)
+            case .diamond:
+                drawDiamond(in: rect)
+            }
+        }
+    }
+    
+    private func drawStar(in rect: CGRect) {
+        let path = UIBezierPath()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let radius = rect.width / 2
+        let innerRadius = radius * 0.4
+        
+        for i in 0..<10 {
+            let angle = CGFloat(i) * .pi / 5 - .pi / 2
+            let r = i % 2 == 0 ? radius : innerRadius
+            let x = center.x + r * cos(angle)
+            let y = center.y + r * sin(angle)
+            if i == 0 {
+                path.move(to: CGPoint(x: x, y: y))
+            } else {
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+        path.close()
+        path.fill()
+    }
+    
+    private func drawHeart(in rect: CGRect) {
+        let path = UIBezierPath()
+        let x = rect.midX
+        let y = rect.midY
+        let size = rect.width / 2
+        
+        path.move(to: CGPoint(x: x, y: y - size * 0.3))
+        path.addCurve(to: CGPoint(x: x - size, y: y - size * 0.8),
+                      controlPoint1: CGPoint(x: x - size * 0.5, y: y - size * 1.2),
+                      controlPoint2: CGPoint(x: x - size, y: y - size))
+        path.addCurve(to: CGPoint(x: x, y: y + size * 0.8),
+                      controlPoint1: CGPoint(x: x - size, y: y),
+                      controlPoint2: CGPoint(x: x, y: y + size * 0.5))
+        path.addCurve(to: CGPoint(x: x + size, y: y - size * 0.8),
+                      controlPoint1: CGPoint(x: x, y: y + size * 0.5),
+                      controlPoint2: CGPoint(x: x + size, y: y))
+        path.addCurve(to: CGPoint(x: x, y: y - size * 0.3),
+                      controlPoint1: CGPoint(x: x + size, y: y - size),
+                      controlPoint2: CGPoint(x: x + size * 0.5, y: y - size * 1.2))
+        path.fill()
+    }
+    
+    private func drawTriangle(in rect: CGRect) {
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.close()
+        path.fill()
+    }
+    
+    private func drawDiamond(in rect: CGRect) {
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.close()
+        path.fill()
+    }
+    
+    private func drawRainbowStroke(context: CGContext?, from start: CGPoint, to end: CGPoint) {
+        rainbowHue = (rainbowHue + 0.02).truncatingRemainder(dividingBy: 1.0)
+        let color = UIColor(hue: rainbowHue, saturation: 1.0, brightness: 1.0, alpha: 1.0)
+        
+        context?.setStrokeColor(color.cgColor)
+        context?.setLineWidth(brushSize)
+        context?.setLineCap(.round)
+        context?.setLineJoin(.round)
+        context?.move(to: start)
+        context?.addLine(to: end)
+        context?.strokePath()
     }
     
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {

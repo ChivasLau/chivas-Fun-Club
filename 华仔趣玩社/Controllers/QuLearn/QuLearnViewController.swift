@@ -5,12 +5,21 @@ class QuLearnViewController: UIViewController {
     private let items: [(String, String, UIColor)] = [
         ("幼儿识字", "🔤", UIColor(hex: "FF6B6B")),
         ("字母点读", "🅰️", UIColor(hex: "4ECDC4")),
-        ("加减口诀", "➕", UIColor(hex: "FFE66D"))
+        ("加减口诀", "🍎", UIColor(hex: "FFE66D")),
+        ("识拼音", "🇨🇳", UIColor(hex: "9B59B6"))
     ]
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+    }
+    
+    override var prefersStatusBarHidden: Bool {
+        return true
+    }
+    
+    override var prefersHomeIndicatorAutoHidden: Bool {
+        return false
     }
     
     private func setupUI() {
@@ -127,6 +136,9 @@ class QuLearnViewController: UIViewController {
             navigationController?.pushViewController(vc, animated: true)
         case 2:
             let vc = MathTableViewController()
+            navigationController?.pushViewController(vc, animated: true)
+        case 3:
+            let vc = PinyinViewController()
             navigationController?.pushViewController(vc, animated: true)
         default:
             break

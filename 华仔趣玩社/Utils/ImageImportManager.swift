@@ -94,14 +94,20 @@ extension ImageImportManager: UIImagePickerControllerDelegate, UINavigationContr
         
         if let image = selectedImage {
             let resizedImage = resizeImage(image, targetSize: CGSize(width: 1920, height: 1200))
-            completion?(resizedImage)
+            let completionCopy = completion
+            completion = nil
+            completionCopy?(resizedImage)
         } else {
-            completion?(nil)
+            let completionCopy = completion
+            completion = nil
+            completionCopy?(nil)
         }
     }
     
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         picker.dismiss(animated: true)
-        completion?(nil)
+        let completionCopy = completion
+        completion = nil
+        completionCopy?(nil)
     }
 }

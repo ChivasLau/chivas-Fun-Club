@@ -8,6 +8,18 @@ class MainTabBarController: UITabBarController {
         setupViewControllers()
     }
     
+    override var prefersStatusBarHidden: Bool {
+        return true
+    }
+    
+    override var prefersHomeIndicatorAutoHidden: Bool {
+        return false
+    }
+    
+    override var childForStatusBarHidden: UIViewController? {
+        return nil
+    }
+    
     private func setupAppearance() {
         let gradientBg = GradientBackgroundView(frame: view.bounds)
         view.insertSubview(gradientBg, at: 0)
