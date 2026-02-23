@@ -118,7 +118,7 @@ class AutoStartViewController: UIViewController {
         nameLabel.font = Theme.Font.bold(size: 16)
         nameLabel.textColor = Theme.brightWhite
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(nameName)
+        view.addSubview(nameLabel)
         
         let descLabel = UILabel()
         descLabel.text = desc

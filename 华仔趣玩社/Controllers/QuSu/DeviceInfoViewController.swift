@@ -186,6 +186,6 @@ class DeviceInfoViewController: UIViewController {
 
 extension UIDevice {
     var languageCode: String? {
-        return Locale.current.language.languageCode?.identifier ?? "zh"
+        return Locale.preferredLanguages.first?.components(separatedBy: "-").first ?? "zh"
     }
 }
