@@ -1,15 +1,20 @@
 import UIKit
+import WebKit
 
 class QuSearchViewController: UIViewController {
     
     private var searchHistory: [String] = ["华仔趣玩社", "iOS工具", "免费游戏"]
     private var isSideBarOpen = false
+    private var currentSearchTool: (category: String, name: String, icon: String, color: UIColor, url: String)?
     
     private var sideBarView: UIView!
     private var dimView: UIView!
     private var searchTextField: UITextField!
     private var historyStackView: UIStackView!
     private var scrollView: UIScrollView!
+    private var webView: WKWebView!
+    private var contentView: UIView!
+    private var placeholderLabel: UILabel!
     
     private let searchTools: [(category: String, name: String, icon: String, color: UIColor, url: String)] = [
         ("短剧搜索", "短搜搜", "🎬", UIColor(hex: "FF6B6B"), "https://www.djys.tv/"),
@@ -100,9 +105,28 @@ class QuSearchViewController: UIViewController {
             searchButton.heightAnchor.constraint(equalToConstant: 36)
         ])
         
+        contentView = UIView()
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(contentView)
+        
+        placeholderLabel = UILabel()
+        placeholderLabel.text = "👈 请从左侧选择搜索网站"
+        placeholderLabel.font = Theme.Font.regular(size: 18)
+        placeholderLabel.textColor = Theme.mutedGray
+        placeholderLabel.textAlignment = .center
+        placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(placeholderLabel)
+        
+        let webConfig = WKWebViewConfiguration()
+        webView = WKWebView(frame: .zero, configuration: webConfig)
+        webView.backgroundColor = .clear
+        webView.isHidden = true
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(webView)
+        
         scrollView = UIScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(scrollView)
+        contentView.addSubview(scrollView)
         
         let contentStack = UIStackView()
         contentStack.axis = .vertical
@@ -267,10 +291,23 @@ class QuSearchViewController: UIViewController {
             searchContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             searchContainer.heightAnchor.constraint(equalToConstant: 56),
             
-            scrollView.topAnchor.constraint(equalTo: searchContainer.bottomAnchor, constant: 20),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            contentView.topAnchor.constraint(equalTo: searchContainer.bottomAnchor, constant: 20),
+            contentView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            
+            placeholderLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            placeholderLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            
+            webView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            webView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            
+            scrollView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             
             contentStack.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 8),
             contentStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 20),
@@ -564,9 +601,13 @@ class QuSearchViewController: UIViewController {
     }
     
     private func openSearchTool(tool: (category: String, name: String, icon: String, color: UIColor, url: String)) {
-        let webVC = CommonWebViewController()
-        webVC.configure(title: tool.name, url: tool.url, themeColor: tool.color)
-        navigationController?.pushViewController(webVC, animated: true)
+        currentSearchTool = tool
+        placeholderLabel.isHidden = true
+        scrollView.isHidden = true
+        webView.isHidden = false
+        
+        guard let url = URL(string: tool.url) else { return }
+        webView.load(URLRequest(url: url))
     }
     
     @objc private func hotTagTapped(_ sender: UIButton) {
@@ -581,6 +622,31 @@ class QuSearchViewController: UIViewController {
             return
         }
         
+        if let tool = currentSearchTool {
+            var searchURL = tool.url
+            if searchURL.contains("baidu.com") {
+                searchURL = "https://www.baidu.com/s?wd=\(keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword)"
+            } else if searchURL.contains("sogou.com") {
+                searchURL = "https://www.sogou.com/web?query=\(keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword)"
+            } else if searchURL.contains("google.com") {
+                searchURL = "https://www.google.com/search?q=\(keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword)"
+            } else if searchURL.contains("bing.com") {
+                searchURL = "https://www.bing.com/search?q=\(keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword)"
+            } else if searchURL.contains("djys.tv") {
+                searchURL = "\(tool.url)search?wd=\(keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword)"
+            } else if searchURL.contains("yike.tv") {
+                searchURL = "\(tool.url)search?query=\(keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword)"
+            } else {
+                searchURL = "\(tool.url)\(keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyword)"
+            }
+            
+            if let url = URL(string: searchURL) {
+                webView.load(URLRequest(url: url))
+            }
+        } else {
+            showAlert(title: "提示", message: "请先从左侧选择搜索网站")
+        }
+        
         if !searchHistory.contains(keyword) {
             searchHistory.insert(keyword, at: 0)
             if searchHistory.count > 10 {
@@ -588,8 +654,6 @@ class QuSearchViewController: UIViewController {
             }
             updateHistoryViews()
         }
-        
-        showAlert(title: "搜索", message: "正在搜索「\(keyword)」...")
     }
     
     @objc private func historyItemTapped(_ gesture: UITapGestureRecognizer) {

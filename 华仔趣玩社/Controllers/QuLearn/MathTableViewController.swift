@@ -13,6 +13,7 @@ class MathTableViewController: UIViewController {
     
     private var questionLabel: UILabel!
     private var leftFruitsLabel: UILabel!
+    private var operatorLabel: UILabel!
     private var rightFruitsLabel: UILabel!
     private var scoreLabel: UILabel!
     private var starsLabel: UILabel!
@@ -101,13 +102,13 @@ class MathTableViewController: UIViewController {
         leftFruitsLabel.translatesAutoresizingMaskIntoConstraints = false
         fruitContainer.addSubview(leftFruitsLabel)
         
-        let plusLabel = UILabel()
-        plusLabel.font = UIFont.systemFont(ofSize: 36, weight: .bold)
-        plusLabel.text = "+"
-        plusLabel.textColor = Theme.neonPink
-        plusLabel.textAlignment = .center
-        plusLabel.translatesAutoresizingMaskIntoConstraints = false
-        fruitContainer.addSubview(plusLabel)
+        operatorLabel = UILabel()
+        operatorLabel.font = UIFont.systemFont(ofSize: 36, weight: .bold)
+        operatorLabel.text = "+"
+        operatorLabel.textColor = Theme.neonPink
+        operatorLabel.textAlignment = .center
+        operatorLabel.translatesAutoresizingMaskIntoConstraints = false
+        fruitContainer.addSubview(operatorLabel)
         
         rightFruitsLabel = UILabel()
         rightFruitsLabel.font = UIFont.systemFont(ofSize: 32)
@@ -121,12 +122,12 @@ class MathTableViewController: UIViewController {
             leftFruitsLabel.leadingAnchor.constraint(equalTo: fruitContainer.leadingAnchor),
             leftFruitsLabel.bottomAnchor.constraint(equalTo: fruitContainer.bottomAnchor),
             
-            plusLabel.topAnchor.constraint(equalTo: fruitContainer.topAnchor),
-            plusLabel.leadingAnchor.constraint(equalTo: leftFruitsLabel.trailingAnchor, constant: 12),
-            plusLabel.bottomAnchor.constraint(equalTo: fruitContainer.bottomAnchor),
+            operatorLabel.topAnchor.constraint(equalTo: fruitContainer.topAnchor),
+            operatorLabel.leadingAnchor.constraint(equalTo: leftFruitsLabel.trailingAnchor, constant: 12),
+            operatorLabel.bottomAnchor.constraint(equalTo: fruitContainer.bottomAnchor),
             
             rightFruitsLabel.topAnchor.constraint(equalTo: fruitContainer.topAnchor),
-            rightFruitsLabel.leadingAnchor.constraint(equalTo: plusLabel.trailingAnchor, constant: 12),
+            rightFruitsLabel.leadingAnchor.constraint(equalTo: operatorLabel.trailingAnchor, constant: 12),
             rightFruitsLabel.trailingAnchor.constraint(equalTo: fruitContainer.trailingAnchor),
             rightFruitsLabel.bottomAnchor.constraint(equalTo: fruitContainer.bottomAnchor)
         ])
@@ -224,6 +225,7 @@ class MathTableViewController: UIViewController {
         if isAddition {
             currentQuestion = (left, right, left + right, true)
             questionLabel.text = "\(left) + \(right) = ?"
+            operatorLabel.text = "+"
             leftFruitsLabel.text = String(repeating: fruit, count: left)
             rightFruitsLabel.text = String(repeating: fruit, count: right)
         } else {
@@ -231,8 +233,15 @@ class MathTableViewController: UIViewController {
             let smaller = min(left, right)
             currentQuestion = (larger, smaller, larger - smaller, false)
             questionLabel.text = "\(larger) - \(smaller) = ?"
-            leftFruitsLabel.text = String(repeating: fruit, count: larger)
-            rightFruitsLabel.text = String(repeating: "⬜", count: smaller)
+            operatorLabel.text = "➖"
+            let remainingFruits = String(repeating: fruit, count: larger - smaller)
+            let takenAwayFruits = String(repeating: "❌", count: smaller)
+            if smaller > 0 {
+                leftFruitsLabel.text = remainingFruits + takenAwayFruits
+            } else {
+                leftFruitsLabel.text = String(repeating: fruit, count: larger)
+            }
+            rightFruitsLabel.text = "=\(larger - smaller)"
         }
         
         generateAnswerOptions()
