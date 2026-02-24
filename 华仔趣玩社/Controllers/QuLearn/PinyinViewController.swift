@@ -227,8 +227,31 @@ class PinyinViewController: UIViewController {
     }
     
     private func speakPinyin(_ text: String) {
+        var speakText = text
+        
+        for item in shengmu {
+            if item.0 == text {
+                speakText = item.1
+                break
+            }
+        }
+        
+        for item in yunmu {
+            if item.0 == text {
+                speakText = item.1
+                break
+            }
+        }
+        
+        for item in ztren {
+            if item.0 == text {
+                speakText = item.1
+                break
+            }
+        }
+        
         let synthesizer = AVSpeechSynthesizer()
-        let utterance = AVSpeechUtterance(string: text)
+        let utterance = AVSpeechUtterance(string: speakText)
         utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
         utterance.rate = 0.4
         synthesizer.speak(utterance)

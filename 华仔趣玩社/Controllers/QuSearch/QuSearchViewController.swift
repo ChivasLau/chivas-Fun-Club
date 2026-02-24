@@ -11,14 +11,14 @@ class QuSearchViewController: UIViewController {
     private var historyStackView: UIStackView!
     private var scrollView: UIScrollView!
     
-    private let searchTools: [(category: String, name: String, icon: String, color: UIColor)] = [
-        ("短剧搜索", "短搜搜", "🎬", UIColor(hex: "FF6B6B")),
-        ("视频搜索", "影迷搜", "🎥", UIColor(hex: "4ECDC4")),
-        ("视频搜索", "片搜搜", "📺", UIColor(hex: "45B7D1")),
-        ("文档搜索", "豆丁搜", "📄", UIColor(hex: "96CEB4")),
-        ("文档搜索", "智库搜", "📚", UIColor(hex: "FFEAA7")),
-        ("云盘搜索", "盘搜搜", "💾", UIColor(hex: "DDA0DD")),
-        ("云盘搜索", "云盘搜", "☁️", UIColor(hex: "98D8C8"))
+    private let searchTools: [(category: String, name: String, icon: String, color: UIColor, url: String)] = [
+        ("短剧搜索", "短搜搜", "🎬", UIColor(hex: "FF6B6B"), "https://www.djys.tv/"),
+        ("视频搜索", "影迷搜", "🎥", UIColor(hex: "4ECDC4"), "https://www.yike.tv/"),
+        ("视频搜索", "片搜搜", "📺", UIColor(hex: "45B7D1"), "https://v.qq.com/"),
+        ("文档搜索", "豆丁搜", "📄", UIColor(hex: "96CEB4"), "https://www.docin.com/"),
+        ("文档搜索", "智库搜", "📚", UIColor(hex: "FFEAA7"), "https://zhikuwenku.com/"),
+        ("云盘搜索", "盘搜搜", "💾", UIColor(hex: "DDA0DD"), "https://www.pansoso.com/"),
+        ("云盘搜索", "云盘搜", "☁️", UIColor(hex: "98D8C8"), "https://www.yunpan.cn/")
     ]
     
     override func viewDidLoad() {
@@ -553,14 +553,20 @@ class QuSearchViewController: UIViewController {
     @objc private func quickToolTapped(_ sender: UIButton) {
         let index = sender.tag
         let tool = searchTools[index]
-        showAlert(title: tool.name, message: "正在使用「\(tool.name)」搜索...")
+        openSearchTool(tool: tool)
     }
     
     @objc private func searchToolTapped(_ gesture: UITapGestureRecognizer) {
         guard let index = gesture.view?.tag else { return }
         let tool = searchTools[index]
         hideSideBar()
-        showAlert(title: tool.name, message: "正在使用「\(tool.name)」搜索...")
+        openSearchTool(tool: tool)
+    }
+    
+    private func openSearchTool(tool: (category: String, name: String, icon: String, color: UIColor, url: String)) {
+        let webVC = CommonWebViewController()
+        webVC.configure(title: tool.name, url: tool.url, themeColor: tool.color)
+        navigationController?.pushViewController(webVC, animated: true)
     }
     
     @objc private func hotTagTapped(_ sender: UIButton) {

@@ -43,6 +43,14 @@ class QuWanViewController: UIViewController {
         gradientBg.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(gradientBg)
         
+        let backButton = UIButton(type: .system)
+        backButton.setTitle("‹ 返回", for: .normal)
+        backButton.titleLabel?.font = Theme.Font.bold(size: 18)
+        backButton.setTitleColor(Theme.electricBlue, for: .normal)
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
+        view.addSubview(backButton)
+        
         let titleLabel = UILabel()
         titleLabel.text = "趣玩"
         titleLabel.font = Theme.Font.bold(size: 28)
@@ -67,6 +75,9 @@ class QuWanViewController: UIViewController {
         }
         
         NSLayoutConstraint.activate([
+            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            
             titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
@@ -147,6 +158,10 @@ class QuWanViewController: UIViewController {
         ])
         
         return card
+    }
+    
+    @objc private func goBack() {
+        navigationController?.popViewController(animated: true)
     }
     
     @objc private func gameTapped(_ gesture: UITapGestureRecognizer) {
