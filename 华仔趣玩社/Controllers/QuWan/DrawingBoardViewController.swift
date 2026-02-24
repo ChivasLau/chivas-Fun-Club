@@ -9,7 +9,7 @@ class DrawingBoardViewController: UIViewController {
     
     private var currentMode: DrawingMode = .freeDraw
     private var currentColor: UIColor = .black
-    private var currentBrushSize: CGFloat = 8.0
+    private var currentBrushSize: CGFloat = 15.0
     private var currentBrushType: BrushType = .normal
     
     private var isToolBarExpanded = true
@@ -232,8 +232,8 @@ class DrawingBoardViewController: UIViewController {
         contentStack.addArrangedSubview(sizeLabel)
         
         let sizeSlider = UISlider()
-        sizeSlider.minimumValue = 1
-        sizeSlider.maximumValue = 50
+        sizeSlider.minimumValue = 5
+        sizeSlider.maximumValue = 60
         sizeSlider.value = Float(currentBrushSize)
         sizeSlider.tintColor = UIColor(hex: "00D4AA")
         sizeSlider.translatesAutoresizingMaskIntoConstraints = false
@@ -424,6 +424,14 @@ class DrawingBoardViewController: UIViewController {
         let brush = brushTypes[index]
         currentBrushType = brush.type
         canvasView.setBrushType(brush.type)
+        
+        if brush.type == .star || brush.type == .heart || brush.type == .triangle || brush.type == .diamond {
+            if currentBrushSize < 15 {
+                currentBrushSize = 20
+                canvasView.setBrushSize(20)
+                sizeLabel.text = "20"
+            }
+        }
         
         for (i, btn) in brushButtons.enumerated() {
             btn.backgroundColor = i == index ? UIColor(hex: "FF6B6B") : UIColor.white.withAlphaComponent(0.15)

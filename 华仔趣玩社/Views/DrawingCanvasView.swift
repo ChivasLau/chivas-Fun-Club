@@ -23,7 +23,7 @@ class DrawingCanvasView: UIView {
     
     private var currentMode: DrawingMode = .freeDraw
     private var currentColor: UIColor = .black
-    private var brushSize: CGFloat = 8.0
+    private var brushSize: CGFloat = 15.0
     private var brushType: BrushType = .normal
     
     private var drawingImage: UIImage?
@@ -250,14 +250,15 @@ class DrawingCanvasView: UIView {
     
     private func drawShapeStroke(from start: CGPoint, to end: CGPoint, shape: ShapeType) {
         let distance = hypot(end.x - start.x, end.y - start.y)
-        let steps = max(Int(distance / (brushSize * 2)), 1)
+        let stepDistance = brushSize * 1.5
+        let steps = max(Int(distance / stepDistance), 1)
         
-        for step in 0...steps {
+        for step in 0..<steps {
             let t = CGFloat(step) / CGFloat(steps)
             let x = start.x + (end.x - start.x) * t
             let y = start.y + (end.y - start.y) * t
             
-            let shapeSize = brushSize
+            let shapeSize = brushSize * 1.2
             let rect = CGRect(x: x - shapeSize/2, y: y - shapeSize/2, width: shapeSize, height: shapeSize)
             
             currentColor.setFill()
