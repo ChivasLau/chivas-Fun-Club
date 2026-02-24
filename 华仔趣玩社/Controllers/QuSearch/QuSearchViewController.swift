@@ -473,7 +473,7 @@ class QuSearchViewController: UIViewController {
         ])
     }
     
-    private func createSideBarItem(tool: (category: String, name: String, icon: String, color: UIColor), index: Int) -> UIView {
+    private func createSideBarItem(tool: (category: String, name: String, icon: String, color: UIColor, url: String), index: Int) -> UIView {
         let view = UIView()
         view.backgroundColor = Theme.cardBackground.withAlphaComponent(0.5)
         view.layer.cornerRadius = 12
