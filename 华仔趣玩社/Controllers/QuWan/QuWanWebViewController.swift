@@ -224,6 +224,14 @@ class QuWanWebViewController: UIViewController {
         navigationController?.navigationBar.shadowImage = UIImage()
         navigationController?.navigationBar.isTranslucent = true
         
+        let backButton = UIBarButtonItem(
+            image: makeBackIcon(),
+            style: .plain,
+            target: self,
+            action: #selector(goBack)
+        )
+        backButton.tintColor = Theme.brightWhite
+        
         let moreButton = UIBarButtonItem(
             image: makeMoreIcon(),
             style: .plain,
@@ -240,7 +248,24 @@ class QuWanWebViewController: UIViewController {
         )
         refreshButton.tintColor = themeColor
         
+        navigationItem.leftBarButtonItem = backButton
         navigationItem.rightBarButtonItems = [moreButton, refreshButton]
+    }
+    
+    private func makeBackIcon() -> UIImage? {
+        UIGraphicsBeginImageContextWithOptions(CGSize(width: 22, height: 22), false, 0)
+        let context = UIGraphicsGetCurrentContext()
+        context?.setStrokeColor(Theme.brightWhite.cgColor)
+        context?.setLineWidth(2)
+        context?.setLineCap(.round)
+        context?.setLineJoin(.round)
+        context?.move(to: CGPoint(x: 12, y: 5))
+        context?.addLine(to: CGPoint(x: 7, y: 11))
+        context?.addLine(to: CGPoint(x: 12, y: 17))
+        context?.strokePath()
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return image
     }
     
     private func makeMoreIcon() -> UIImage? {
@@ -359,6 +384,14 @@ class QuWanWebViewController: UIViewController {
     
     @objc private func refreshAction() {
         webView.reload()
+    }
+    
+    @objc private func goBack() {
+        if webView.canGoBack {
+            webView.goBack()
+        } else {
+            navigationController?.popViewController(animated: true)
+        }
     }
     
     @objc private func shareAction() {
