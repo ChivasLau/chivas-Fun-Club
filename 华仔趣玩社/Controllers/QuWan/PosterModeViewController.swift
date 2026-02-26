@@ -79,7 +79,7 @@ enum KidTextPreset: String, CaseIterable {
     case goodJob = "做得好！"
 }
 
-enum BrushType: String, CaseIterable {
+enum PosterBrushType: String, CaseIterable {
     case normal = "普通笔"
     case marker = "马克笔"
     case highlighter = "荧光笔"
@@ -233,7 +233,7 @@ class PosterModeViewController: UIViewController {
     
     private var undoStack: [UIImage] = []
     private var redoStack: [UIImage] = []
-    private var currentBrushType: BrushType = .normal
+    private var currentBrushType: PosterBrushType = .normal
     
     private var undoBtn: UIButton?
     private var redoBtn: UIButton?
@@ -1624,7 +1624,7 @@ class PosterModeViewController: UIViewController {
         brushStack.translatesAutoresizingMaskIntoConstraints = false
         panel.addSubview(brushStack)
         
-        for brush in BrushType.allCases {
+        for brush in PosterBrushType.allCases {
             let brushBtn = UIButton(type: .system)
             brushBtn.setTitle(brush.rawValue, for: .normal)
             brushBtn.setTitleColor(Theme.brightWhite, for: .normal)
@@ -1729,7 +1729,7 @@ class PosterModeViewController: UIViewController {
     }
     
     @objc private func brushTypeSelected(_ sender: UIButton) {
-        let brush = BrushType.allCases[sender.tag]
+        let brush = PosterBrushType.allCases[sender.tag]
         currentBrushType = brush
         
         switch brush {
@@ -1878,7 +1878,7 @@ class PosterModeViewController: UIViewController {
         view.addSubview(overlay)
         loadingView = overlay
         
-        let spinner = UIActivityIndicatorView(style: .large)
+        let spinner = UIActivityIndicatorView(style: .whiteLarge)
         spinner.color = .white
         spinner.translatesAutoresizingMaskIntoConstraints = false
         spinner.startAnimating()
