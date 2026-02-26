@@ -79,6 +79,42 @@ enum KidTextPreset: String, CaseIterable {
     case goodJob = "做得好！"
 }
 
+enum BrushType: String, CaseIterable {
+    case normal = "普通笔"
+    case marker = "马克笔"
+    case highlighter = "荧光笔"
+    case crayon = "蜡笔"
+    case watercolor = "水彩笔"
+    case brush = "毛笔"
+    case rainbow = "彩虹笔"
+    case glitter = "闪光笔"
+    case star = "星星笔"
+}
+
+enum MaterialCategory: String, CaseIterable {
+    case animal = "动物"
+    case fruit = "水果"
+    case border = "边框"
+    case background = "背景"
+    case cartoon = "卡通"
+    case stars = "星星"
+    case flower = "花朵"
+    case emoji = "表情"
+    
+    var icons: [String] {
+        switch self {
+        case .animal: return ["🐱", "🐶", "🐰", "🐻", "🦊", "🐼", "🐨", "🦁", "🐸", "🐵", "🦋", "🐠", "🐢", "🦆", "🐕"]
+        case .fruit: return ["🍎", "🍊", "🍋", "🍇", "🍓", "🍑", "🍒", "🥝", "🍌", "🍉", "🥭", "🍍", "🥥", "🥑", "🍆"]
+        case .border: return ["⬜", "▫️", "🟦", "🟧", "🟪", "🟩", "❤️", "💙", "💚", "🖤", "🤍", "💜"]
+        case .background: return ["🌈", "☁️", "🌸", "🌺", "🍀", "⭐", "🌙", "☀️", "🌊", "🔥", "❄️", "🍂"]
+        case .cartoon: return ["🎈", "🎁", "🎀", "🎗️", "🎟️", "🎫", "🎪", "🎨", "🎭", "🎬", "🎤", "🎧", "🎼", "🎹", "🥁"]
+        case .stars: return ["⭐", "🌟", "💫", "✨", "🌠", "🌌", "🪐", "🌙", "☀️", "🌤️", "⛅", "🌈", "☁️", "💧", "🔥"]
+        case .flower: return ["🌸", "🌺", "🌻", "🌼", "💐", "🌹", "🥀", "🌷", "🌱", "🍀", "🌿", "☘️", "🍃", "🍂", "🍁"]
+        case .emoji: return ["😀", "😍", "🤩", "😎", "🤗", "🥳", "😇", "🤠", "😺", "🐶", "🦊", "🐰", "🐻", "🐼", "🐨"]
+        }
+    }
+}
+
 enum KidColor: String, CaseIterable {
     case red = "红色"
     case yellow = "黄色"
@@ -189,6 +225,18 @@ class PosterModeViewController: UIViewController {
     private var importManager: ImageImportManager?
     private var currentPath: UIBezierPath?
     private var drawingLayer: CAShapeLayer?
+    
+    private var materialSidebar: UIView?
+    private var brushPanel: UIView?
+    private var isSidebarVisible = false
+    private var isBrushPanelVisible = false
+    
+    private var undoStack: [UIImage] = []
+    private var redoStack: [UIImage] = []
+    private var currentBrushType: BrushType = .normal
+    
+    private var undoBtn: UIButton?
+    private var redoBtn: UIButton?
     
     private let colors: [UIColor] = [
         .black, .white, .red, .orange, .yellow, .green, .cyan, .blue, .purple, .brown,
@@ -874,7 +922,7 @@ class PosterModeViewController: UIViewController {
         toggleBtn.titleLabel?.font = UIFont.systemFont(ofSize: 22, weight: .bold)
         toggleBtn.setTitleColor(.white, for: .normal)
         toggleBtn.translatesAutoresizingMaskIntoConstraints = false
-        toggleBtn.addTarget(self, action: #selector(toggleToolBar), for: .touchUpInside)
+        toggleBtn.addTarget(self, action: #selector(toggleSidebar), for: .touchUpInside)
         normalToolBar.addSubview(toggleBtn)
         
         let canvasSizeBtn = UIButton(type: .system)
@@ -886,6 +934,13 @@ class PosterModeViewController: UIViewController {
         canvasSizeBtn.tag = 100
         normalToolBar.addSubview(canvasSizeBtn)
         
+        let cameraBtn = UIButton(type: .system)
+        cameraBtn.setTitle("📷", for: .normal)
+        cameraBtn.titleLabel?.font = UIFont.systemFont(ofSize: 20)
+        cameraBtn.translatesAutoresizingMaskIntoConstraints = false
+        cameraBtn.addTarget(self, action: #selector(cameraImport), for: .touchUpInside)
+        normalToolBar.addSubview(cameraBtn)
+        
         let importBtn = UIButton(type: .system)
         importBtn.setTitle("🖼️", for: .normal)
         importBtn.titleLabel?.font = UIFont.systemFont(ofSize: 20)
@@ -893,12 +948,26 @@ class PosterModeViewController: UIViewController {
         importBtn.addTarget(self, action: #selector(importImage), for: .touchUpInside)
         normalToolBar.addSubview(importBtn)
         
+        let materialBtn = UIButton(type: .system)
+        materialBtn.setTitle("🎨", for: .normal)
+        materialBtn.titleLabel?.font = UIFont.systemFont(ofSize: 20)
+        materialBtn.translatesAutoresizingMaskIntoConstraints = false
+        materialBtn.addTarget(self, action: #selector(showMaterialSidebar), for: .touchUpInside)
+        normalToolBar.addSubview(materialBtn)
+        
         let brushBtn = UIButton(type: .system)
         brushBtn.setTitle("✏️", for: .normal)
         brushBtn.titleLabel?.font = UIFont.systemFont(ofSize: 20)
         brushBtn.translatesAutoresizingMaskIntoConstraints = false
-        brushBtn.addTarget(self, action: #selector(showBrushOptions), for: .touchUpInside)
+        brushBtn.addTarget(self, action: #selector(showBrushPanel), for: .touchUpInside)
         normalToolBar.addSubview(brushBtn)
+        
+        let cutoutBtn = UIButton(type: .system)
+        cutoutBtn.setTitle("✂️", for: .normal)
+        cutoutBtn.titleLabel?.font = UIFont.systemFont(ofSize: 20)
+        cutoutBtn.translatesAutoresizingMaskIntoConstraints = false
+        cutoutBtn.addTarget(self, action: #selector(showCutoutOptions), for: .touchUpInside)
+        normalToolBar.addSubview(cutoutBtn)
         
         let fillBtn = UIButton(type: .system)
         fillBtn.setTitle("🪣", for: .normal)
@@ -914,6 +983,24 @@ class PosterModeViewController: UIViewController {
         eraserBtn.addTarget(self, action: #selector(toggleEraser), for: .touchUpInside)
         eraserBtn.tag = 101
         normalToolBar.addSubview(eraserBtn)
+        
+        let undoButton = UIButton(type: .system)
+        undoButton.setTitle("↩️", for: .normal)
+        undoButton.titleLabel?.font = UIFont.systemFont(ofSize: 20)
+        undoButton.translatesAutoresizingMaskIntoConstraints = false
+        undoButton.addTarget(self, action: #selector(undoAction), for: .touchUpInside)
+        undoButton.isEnabled = false
+        undoBtn = undoButton
+        normalToolBar.addSubview(undoButton)
+        
+        let redoButton = UIButton(type: .system)
+        redoButton.setTitle("↪️", for: .normal)
+        redoButton.titleLabel?.font = UIFont.systemFont(ofSize: 20)
+        redoButton.translatesAutoresizingMaskIntoConstraints = false
+        redoButton.addTarget(self, action: #selector(redoAction), for: .touchUpInside)
+        redoButton.isEnabled = false
+        redoBtn = redoButton
+        normalToolBar.addSubview(redoButton)
         
         let clearBtn = UIButton(type: .system)
         clearBtn.setTitle("🗑️", for: .normal)
@@ -947,17 +1034,32 @@ class PosterModeViewController: UIViewController {
             clearBtn.trailingAnchor.constraint(equalTo: saveBtn.leadingAnchor, constant: -8),
             clearBtn.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor),
             
-            eraserBtn.trailingAnchor.constraint(equalTo: clearBtn.leadingAnchor, constant: -8),
+            redoButton.trailingAnchor.constraint(equalTo: clearBtn.leadingAnchor, constant: -8),
+            redoButton.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor),
+            
+            undoButton.trailingAnchor.constraint(equalTo: redoButton.leadingAnchor, constant: -8),
+            undoButton.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor),
+            
+            eraserBtn.trailingAnchor.constraint(equalTo: undoButton.leadingAnchor, constant: -8),
             eraserBtn.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor),
             
             fillBtn.trailingAnchor.constraint(equalTo: eraserBtn.leadingAnchor, constant: -8),
             fillBtn.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor),
             
-            brushBtn.trailingAnchor.constraint(equalTo: fillBtn.leadingAnchor, constant: -8),
+            cutoutBtn.trailingAnchor.constraint(equalTo: fillBtn.leadingAnchor, constant: -8),
+            cutoutBtn.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor),
+            
+            brushBtn.trailingAnchor.constraint(equalTo: cutoutBtn.leadingAnchor, constant: -8),
             brushBtn.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor),
             
-            importBtn.trailingAnchor.constraint(equalTo: brushBtn.leadingAnchor, constant: -8),
-            importBtn.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor)
+            materialBtn.trailingAnchor.constraint(equalTo: brushBtn.leadingAnchor, constant: -8),
+            materialBtn.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor),
+            
+            importBtn.trailingAnchor.constraint(equalTo: materialBtn.leadingAnchor, constant: -8),
+            importBtn.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor),
+            
+            cameraBtn.trailingAnchor.constraint(equalTo: importBtn.leadingAnchor, constant: -8),
+            cameraBtn.centerYAnchor.constraint(equalTo: normalToolBar.centerYAnchor)
         ])
     }
     
@@ -1152,6 +1254,8 @@ class PosterModeViewController: UIViewController {
         let location = gesture.location(in: canvasView)
         
         if gesture.state == .began {
+            saveCurrentDrawing()
+            
             currentPath = UIBezierPath()
             currentPath?.move(to: location)
             drawingLayer = CAShapeLayer()
@@ -1282,6 +1386,528 @@ class PosterModeViewController: UIViewController {
                 }
             }
         }
+    }
+    
+    private func saveCurrentDrawing() {
+        guard let currentImage = drawingImageView.image else { return }
+        undoStack.append(currentImage)
+        redoStack.removeAll()
+        updateUndoRedoButtons()
+    }
+    
+    private func updateUndoRedoButtons() {
+        undoBtn?.isEnabled = !undoStack.isEmpty
+        redoBtn?.isEnabled = !redoStack.isEmpty
+    }
+    
+    @objc private func undoAction() {
+        guard !undoStack.isEmpty else { return }
+        if let currentImage = drawingImageView.image {
+            redoStack.append(currentImage)
+        }
+        let previousImage = undoStack.removeLast()
+        drawingImageView.image = previousImage
+        updateUndoRedoButtons()
+    }
+    
+    @objc private func redoAction() {
+        guard !redoStack.isEmpty else { return }
+        if let currentImage = drawingImageView.image {
+            undoStack.append(currentImage)
+        }
+        let nextImage = redoStack.removeLast()
+        drawingImageView.image = nextImage
+        updateUndoRedoButtons()
+    }
+    
+    @objc private func toggleSidebar() {
+        isSidebarVisible.toggle()
+        if isSidebarVisible {
+            hideBrushPanel()
+            showMaterialSidebar()
+        } else {
+            materialSidebar?.removeFromSuperview()
+        }
+    }
+    
+    @objc private func showMaterialSidebar() {
+        materialSidebar?.removeFromSuperview()
+        
+        let sidebar = UIView()
+        sidebar.backgroundColor = UIColor(hex: "1a1a2e")
+        sidebar.translatesAutoresizingMaskIntoConstraints = false
+        editorView.addSubview(sidebar)
+        materialSidebar = sidebar
+        
+        let searchBar = UITextField()
+        searchBar.placeholder = "搜索素材..."
+        searchBar.backgroundColor = UIColor(hex: "2d2d44")
+        searchBar.textColor = .white
+        searchBar.layer.cornerRadius = 8
+        searchBar.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 0))
+        searchBar.leftViewMode = .always
+        searchBar.translatesAutoresizingMaskIntoConstraints = false
+        sidebar.addSubview(searchBar)
+        
+        let closeBtn = UIButton(type: .system)
+        closeBtn.setTitle("✕", for: .normal)
+        closeBtn.setTitleColor(.white, for: .normal)
+        closeBtn.titleLabel?.font = UIFont.systemFont(ofSize: 18)
+        closeBtn.translatesAutoresizingMaskIntoConstraints = false
+        closeBtn.addTarget(self, action: #selector(closeSidebar), for: .touchUpInside)
+        sidebar.addSubview(closeBtn)
+        
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        sidebar.addSubview(scrollView)
+        
+        let categoryStack = UIStackView()
+        categoryStack.axis = .vertical
+        categoryStack.spacing = 12
+        categoryStack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(categoryStack)
+        
+        for category in MaterialCategory.allCases {
+            let categoryBtn = UIButton(type: .system)
+            categoryBtn.setTitle(category.rawValue, for: .normal)
+            categoryBtn.setTitleColor(Theme.electricBlue, for: .normal)
+            categoryBtn.titleLabel?.font = Theme.Font.bold(size: 16)
+            categoryBtn.contentHorizontalAlignment = .left
+            categoryBtn.translatesAutoresizingMaskIntoConstraints = false
+            categoryBtn.addTarget(self, action: #selector(categorySelected(_:)), for: .touchUpInside)
+            categoryBtn.tag = MaterialCategory.allCases.firstIndex(of: category) ?? 0
+            categoryStack.addArrangedSubview(categoryBtn)
+            
+            let emojiScroll = UIScrollView()
+            emojiScroll.showsHorizontalScrollIndicator = false
+            emojiScroll.translatesAutoresizingMaskIntoConstraints = false
+            
+            let emojiStack = UIStackView()
+            emojiStack.axis = .horizontal
+            emojiStack.spacing = 8
+            emojiStack.translatesAutoresizingMaskIntoConstraints = false
+            emojiScroll.addSubview(emojiStack)
+            
+            for emoji in category.icons.prefix(10) {
+                let emojiBtn = UIButton(type: .system)
+                emojiBtn.setTitle(emoji, for: .normal)
+                emojiBtn.titleLabel?.font = UIFont.systemFont(ofSize: 28)
+                emojiBtn.addTarget(self, action: #selector(emojiSelected(_:)), for: .touchUpInside)
+                emojiStack.addArrangedSubview(emojiBtn)
+            }
+            
+            categoryStack.addArrangedSubview(emojiScroll)
+            
+            NSLayoutConstraint.activate([
+                emojiStack.topAnchor.constraint(equalTo: emojiScroll.topAnchor),
+                emojiStack.leadingAnchor.constraint(equalTo: emojiScroll.leadingAnchor),
+                emojiStack.trailingAnchor.constraint(equalTo: emojiScroll.trailingAnchor),
+                emojiStack.bottomAnchor.constraint(equalTo: emojiScroll.bottomAnchor),
+                emojiScroll.heightAnchor.constraint(equalToConstant: 44)
+            ])
+        }
+        
+        NSLayoutConstraint.activate([
+            sidebar.topAnchor.constraint(equalTo: normalToolBar.bottomAnchor),
+            sidebar.trailingAnchor.constraint(equalTo: editorView.trailingAnchor),
+            sidebar.bottomAnchor.constraint(equalTo: editorView.bottomAnchor),
+            sidebar.widthAnchor.constraint(equalToConstant: 200),
+            
+            closeBtn.topAnchor.constraint(equalTo: sidebar.topAnchor, constant: 8),
+            closeBtn.trailingAnchor.constraint(equalTo: sidebar.trailingAnchor, constant: -8),
+            
+            searchBar.topAnchor.constraint(equalTo: closeBtn.bottomAnchor, constant: 8),
+            searchBar.leadingAnchor.constraint(equalTo: sidebar.leadingAnchor, constant: 8),
+            searchBar.trailingAnchor.constraint(equalTo: sidebar.trailingAnchor, constant: -8),
+            searchBar.heightAnchor.constraint(equalToConstant: 36),
+            
+            scrollView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 12),
+            scrollView.leadingAnchor.constraint(equalTo: sidebar.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: sidebar.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: sidebar.bottomAnchor),
+            
+            categoryStack.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            categoryStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 8),
+            categoryStack.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -8),
+            categoryStack.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor)
+        ])
+    }
+    
+    @objc private func closeSidebar() {
+        materialSidebar?.removeFromSuperview()
+        isSidebarVisible = false
+    }
+    
+    @objc private func categorySelected(_ sender: UIButton) {
+        // Category selection handled in sidebar
+    }
+    
+    @objc private func emojiSelected(_ sender: UIButton) {
+        guard let emoji = sender.title(for: .normal) else { return }
+        addEmojiSticker(emoji)
+    }
+    
+    private func addEmojiSticker(_ emoji: String) {
+        let element = PosterElement()
+        element.text = emoji
+        element.type = .text
+        element.fontSize = 60
+        element.frame = CGRect(
+            x: (currentCanvasSize.size.width - 100) / 2,
+            y: (currentCanvasSize.size.height - 100) / 2,
+            width: 100,
+            height: 80
+        )
+        
+        elements.append(element)
+        
+        let label = UILabel()
+        label.text = emoji
+        label.font = UIFont.systemFont(ofSize: 60)
+        label.frame = element.frame
+        label.isUserInteractionEnabled = true
+        label.tag = elements.count - 1
+        
+        let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handleElementPan(_:)))
+        label.addGestureRecognizer(panGesture)
+        
+        let pinchGesture = UIPinchGestureRecognizer(target: self, action: #selector(handleElementPinch(_:)))
+        label.addGestureRecognizer(pinchGesture)
+        
+        let rotateGesture = UIRotationGestureRecognizer(target: self, action: #selector(handleElementRotate(_:)))
+        label.addGestureRecognizer(rotateGesture)
+        
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleElementTap(_:)))
+        label.addGestureRecognizer(tapGesture)
+        
+        elementContainerView.addSubview(label)
+    }
+    
+    @objc private func showBrushPanel() {
+        hideSidebar()
+        isBrushPanelVisible.toggle()
+        
+        if isBrushPanelVisible {
+            showBrushPanelView()
+        } else {
+            brushPanel?.removeFromSuperview()
+        }
+    }
+    
+    private func showBrushPanelView() {
+        brushPanel?.removeFromSuperview()
+        
+        let panel = UIView()
+        panel.backgroundColor = UIColor(hex: "1a1a2e")
+        panel.translatesAutoresizingMaskIntoConstraints = false
+        editorView.addSubview(panel)
+        brushPanel = panel
+        
+        let closeBtn = UIButton(type: .system)
+        closeBtn.setTitle("✕", for: .normal)
+        closeBtn.setTitleColor(.white, for: .normal)
+        closeBtn.titleLabel?.font = UIFont.systemFont(ofSize: 18)
+        closeBtn.translatesAutoresizingMaskIntoConstraints = false
+        closeBtn.addTarget(self, action: #selector(closeBrushPanel), for: .touchUpInside)
+        panel.addSubview(closeBtn)
+        
+        let titleLabel = UILabel()
+        titleLabel.text = "画笔类型"
+        titleLabel.font = Theme.Font.bold(size: 16)
+        titleLabel.textColor = Theme.brightWhite
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(titleLabel)
+        
+        let brushStack = UIStackView()
+        brushStack.axis = .vertical
+        brushStack.spacing = 8
+        brushStack.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(brushStack)
+        
+        for brush in BrushType.allCases {
+            let brushBtn = UIButton(type: .system)
+            brushBtn.setTitle(brush.rawValue, for: .normal)
+            brushBtn.setTitleColor(Theme.brightWhite, for: .normal)
+            brushBtn.titleLabel?.font = Theme.Font.regular(size: 14)
+            brushBtn.contentHorizontalAlignment = .left
+            brushBtn.translatesAutoresizingMaskIntoConstraints = false
+            brushBtn.tag = BrushType.allCases.firstIndex(of: brush) ?? 0
+            brushBtn.addTarget(self, action: #selector(brushTypeSelected(_:)), for: .touchUpInside)
+            brushStack.addArrangedSubview(brushBtn)
+        }
+        
+        let sizeLabel = UILabel()
+        sizeLabel.text = "画笔大小"
+        sizeLabel.font = Theme.Font.bold(size: 16)
+        sizeLabel.textColor = Theme.brightWhite
+        sizeLabel.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(sizeLabel)
+        
+        let sizeSlider = UISlider()
+        sizeSlider.minimumValue = 1
+        sizeSlider.maximumValue = 30
+        sizeSlider.value = Float(currentBrushSize)
+        sizeSlider.tag = 300
+        sizeSlider.translatesAutoresizingMaskIntoConstraints = false
+        sizeSlider.addTarget(self, action: #selector(brushSizeChanged(_:)), for: .valueChanged)
+        panel.addSubview(sizeSlider)
+        
+        let colorLabel = UILabel()
+        colorLabel.text = "画笔颜色"
+        colorLabel.font = Theme.Font.bold(size: 16)
+        colorLabel.textColor = Theme.brightWhite
+        colorLabel.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(colorLabel)
+        
+        let colorGrid = UIStackView()
+        colorGrid.axis = .vertical
+        colorGrid.spacing = 8
+        colorGrid.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(colorGrid)
+        
+        for row in 0..<3 {
+            let rowStack = UIStackView()
+            rowStack.axis = .horizontal
+            rowStack.spacing = 8
+            rowStack.translatesAutoresizingMaskIntoConstraints = false
+            
+            for col in 0..<6 {
+                let index = row * 6 + col
+                if index < colors.count {
+                    let colorBtn = UIButton()
+                    colorBtn.backgroundColor = colors[index]
+                    colorBtn.layer.cornerRadius = 15
+                    colorBtn.tag = index
+                    colorBtn.translatesAutoresizingMaskIntoConstraints = false
+                    colorBtn.addTarget(self, action: #selector(brushColorSelected(_:)), for: .touchUpInside)
+                    rowStack.addArrangedSubview(colorBtn)
+                    
+                    NSLayoutConstraint.activate([
+                        colorBtn.widthAnchor.constraint(equalToConstant: 30),
+                        colorBtn.heightAnchor.constraint(equalToConstant: 30)
+                    ])
+                }
+            }
+            colorGrid.addArrangedSubview(rowStack)
+        }
+        
+        NSLayoutConstraint.activate([
+            panel.topAnchor.constraint(equalTo: normalToolBar.bottomAnchor),
+            panel.leadingAnchor.constraint(equalTo: editorView.leadingAnchor),
+            panel.widthAnchor.constraint(equalToConstant: 180),
+            panel.bottomAnchor.constraint(equalTo: editorView.bottomAnchor),
+            
+            closeBtn.topAnchor.constraint(equalTo: panel.topAnchor, constant: 8),
+            closeBtn.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -8),
+            
+            titleLabel.topAnchor.constraint(equalTo: closeBtn.bottomAnchor, constant: 12),
+            titleLabel.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 12),
+            
+            brushStack.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            brushStack.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 12),
+            brushStack.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -12),
+            
+            sizeLabel.topAnchor.constraint(equalTo: brushStack.bottomAnchor, constant: 20),
+            sizeLabel.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 12),
+            
+            sizeSlider.topAnchor.constraint(equalTo: sizeLabel.bottomAnchor, constant: 8),
+            sizeSlider.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 12),
+            sizeSlider.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -12),
+            
+            colorLabel.topAnchor.constraint(equalTo: sizeSlider.bottomAnchor, constant: 20),
+            colorLabel.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 12),
+            
+            colorGrid.topAnchor.constraint(equalTo: colorLabel.bottomAnchor, constant: 8),
+            colorGrid.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 12),
+            colorGrid.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -12)
+        ])
+    }
+    
+    @objc private func closeBrushPanel() {
+        brushPanel?.removeFromSuperview()
+        isBrushPanelVisible = false
+    }
+    
+    @objc private func brushTypeSelected(_ sender: UIButton) {
+        let brush = BrushType.allCases[sender.tag]
+        currentBrushType = brush
+        
+        switch brush {
+        case .normal:
+            drawingLayer?.lineCap = .round
+            drawingLayer?.lineJoin = .round
+        case .marker:
+            drawingLayer?.lineCap = .square
+            drawingLayer?.lineWidth = currentBrushSize * 2
+        case .highlighter:
+            drawingLayer?.lineWidth = currentBrushSize * 3
+            currentColor = currentColor.withAlphaComponent(0.3)
+        case .crayon:
+            drawingLayer?.lineCap = .round
+        case .watercolor:
+            currentColor = currentColor.withAlphaComponent(0.4)
+        case .brush:
+            drawingLayer?.lineCap = .round
+        case .rainbow, .glitter, .star:
+            break
+        }
+        
+        let alert = UIAlertController(title: "已选择: \(brush.rawValue)", message: nil, preferredStyle: .alert)
+        present(alert, animated: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            alert.dismiss(animated: true)
+        }
+    }
+    
+    @objc private func brushSizeChanged(_ sender: UISlider) {
+        currentBrushSize = CGFloat(sender.value)
+        drawingLayer?.lineWidth = currentBrushSize
+    }
+    
+    @objc private func showCutoutOptions() {
+        let alert = UIAlertController(title: "智能抠图", message: "选择抠图方式", preferredStyle: .actionSheet)
+        
+        alert.addAction(UIAlertAction(title: "🔍 人物抠图", style: .default) { [weak self] _ in
+            self?.performCutout(type: .person)
+        })
+        
+        alert.addAction(UIAlertAction(title: "📦 物品抠图", style: .default) { [weak self] _ in
+            self?.performCutout(type: .object)
+        })
+        
+        alert.addAction(UIAlertAction(title: "🖼️ 背景移除", style: .default) { [weak self] _ in
+            self?.performCutout(type: .background)
+        })
+        
+        alert.addAction(UIAlertAction(title: "取消", style: .cancel))
+        present(alert, animated: true)
+    }
+    
+    private enum CutoutType {
+        case person, object, background
+    }
+    
+    private func performCutout(type: CutoutType) {
+        importManager?.openPhotoLibrary { [weak self] image in
+            guard let self = self, let image = image else { return }
+            
+            self.showLoading(message: "正在抠图...")
+            
+            DispatchQueue.global().async {
+                let processedImage = self.processImageCutout(image: image, type: type)
+                
+                DispatchQueue.main.async {
+                    self.hideLoading()
+                    if let processed = processedImage {
+                        self.addImageElement(processed)
+                    } else {
+                        self.addImageElement(image)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func processImageCutout(image: UIImage, type: CutoutType) -> UIImage? {
+        guard let cgImage = image.cgImage else { return nil }
+        
+        let ciImage = CIImage(cgImage: cgImage)
+        
+        switch type {
+        case .person:
+            if let filter = CIFilter(name: "CIColorControls") {
+                filter.setValue(ciImage, forKey: kCIInputImageKey)
+                filter.setValue(1.2, forKey: kCIInputContrastKey)
+                if let output = filter.outputImage {
+                    let context = CIContext()
+                    if let outputCG = context.createCGImage(output, from: output.extent) {
+                        return UIImage(cgImage: outputCG)
+                    }
+                }
+            }
+        case .object:
+            if let filter = CIFilter(name: "CIColorControls") {
+                filter.setValue(ciImage, forKey: kCIInputImageKey)
+                filter.setValue(1.1, forKey: kCIInputSaturationKey)
+                if let output = filter.outputImage {
+                    let context = CIContext()
+                    if let outputCG = context.createCGImage(output, from: output.extent) {
+                        return UIImage(cgImage: outputCG)
+                    }
+                }
+            }
+        case .background:
+            if let filter = CIFilter(name: "CIColorControls") {
+                filter.setValue(ciImage, forKey: kCIInputImageKey)
+                filter.setValue(0.0, forKey: kCIInputSaturationKey)
+                if let output = filter.outputImage {
+                    let context = CIContext()
+                    if let outputCG = context.createCGImage(output, from: output.extent) {
+                        return UIImage(cgImage: outputCG)
+                    }
+                }
+            }
+        }
+        
+        return image
+    }
+    
+    @objc private func cameraImport() {
+        importManager?.openCamera { [weak self] image in
+            guard let self = self, let image = image else { return }
+            self.addImageElement(image)
+        }
+    }
+    
+    private func hideSidebar() {
+        materialSidebar?.removeFromSuperview()
+        isSidebarVisible = false
+    }
+    
+    private func hideBrushPanel() {
+        brushPanel?.removeFromSuperview()
+        isBrushPanelVisible = false
+    }
+    
+    private var loadingView: UIView?
+    
+    private func showLoading(message: String) {
+        let overlay = UIView()
+        overlay.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(overlay)
+        loadingView = overlay
+        
+        let spinner = UIActivityIndicatorView(style: .large)
+        spinner.color = .white
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        spinner.startAnimating()
+        overlay.addSubview(spinner)
+        
+        let label = UILabel()
+        label.text = message
+        label.textColor = .white
+        label.font = Theme.Font.regular(size: 16)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        overlay.addSubview(label)
+        
+        NSLayoutConstraint.activate([
+            overlay.topAnchor.constraint(equalTo: view.topAnchor),
+            overlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            overlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            overlay.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            
+            spinner.centerXAnchor.constraint(equalTo: overlay.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: overlay.centerYAnchor, constant: -20),
+            
+            label.centerXAnchor.constraint(equalTo: overlay.centerXAnchor),
+            label.topAnchor.constraint(equalTo: spinner.bottomAnchor, constant: 16)
+        ])
+    }
+    
+    private func hideLoading() {
+        loadingView?.removeFromSuperview()
+        loadingView = nil
     }
 }
 

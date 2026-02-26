@@ -1,6 +1,7 @@
 import UIKit
 import Photos
 import MobileCoreServices
+import AVFoundation
 
 class ImageImportManager: NSObject {
     private weak var parentVC: UIViewController?
@@ -43,6 +44,75 @@ class ImageImportManager: NSObject {
         picker.allowsEditing = false
         picker.mediaTypes = [kUTTypeImage as String]
         parentVC.present(picker, animated: true)
+    }
+    
+    func openCamera(completion: @escaping (UIImage?) -> Void) {
+        self.completion = completion
+        
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            showCameraUnavailableAlert()
+            completion(nil)
+            return
+        }
+        
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        
+        switch status {
+        case .authorized:
+            presentCamera()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        self?.presentCamera()
+                    } else {
+                        self?.showCameraPermissionAlert()
+                    }
+                }
+            }
+        default:
+            showCameraPermissionAlert()
+        }
+    }
+    
+    private func presentCamera() {
+        guard let parentVC = parentVC else { return }
+        
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = self
+        picker.allowsEditing = false
+        picker.mediaTypes = [kUTTypeImage as String]
+        parentVC.present(picker, animated: true)
+    }
+    
+    private func showCameraPermissionAlert() {
+        guard let parentVC = parentVC else { return }
+        
+        let alert = UIAlertController(
+            title: "需要相机权限",
+            message: "请在设置中开启相机权限，才能拍照哦～",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "去设置", style: .default) { _ in
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        })
+        alert.addAction(UIAlertAction(title: "取消", style: .cancel))
+        parentVC.present(alert, animated: true)
+    }
+    
+    private func showCameraUnavailableAlert() {
+        guard let parentVC = parentVC else { return }
+        
+        let alert = UIAlertController(
+            title: "相机不可用",
+            message: "您的设备不支持拍照功能",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "确定", style: .default))
+        parentVC.present(alert, animated: true)
     }
     
     private func showPermissionAlert() {
