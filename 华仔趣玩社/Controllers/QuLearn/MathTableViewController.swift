@@ -535,8 +535,7 @@ class MathTableViewController: UIViewController {
         questionView.addSubview(answerStack)
         
         let range = selectedDifficulty.range
-        let maxAnswer = range.upperBound + range.upperBound
-        let displayCount = min(6, maxAnswer + 1)
+        let displayCount = 11
         
         for i in 0..<displayCount {
             let button = UIButton(type: .system)
@@ -600,26 +599,31 @@ class MathTableViewController: UIViewController {
         guard let questionView = questionView else { return }
         
         let range = selectedDifficulty.range
-        let left = Int(arc4random_uniform(UInt32(range.upperBound - range.lowerBound + 1))) + range.lowerBound
-        let right = Int(arc4random_uniform(UInt32(range.upperBound - range.lowerBound + 1))) + range.lowerBound
         
+        var left: Int
+        var right: Int
         var answer: Int
-        var finalLeft = left
-        var finalRight = right
         
         if selectedCalculation == .addition {
-            answer = left + right
+            repeat {
+                left = Int(arc4random_uniform(UInt32(range.upperBound - range.lowerBound + 1))) + range.lowerBound
+                right = Int(arc4random_uniform(UInt32(range.upperBound - range.lowerBound + 1))) + range.lowerBound
+                answer = left + right
+            } while answer > 10
         } else {
-            if left >= right {
-                finalLeft = left
-                finalRight = right
-                answer = left - right
-            } else {
-                finalLeft = right
-                finalRight = left
-                answer = right - left
-            }
+            repeat {
+                left = Int(arc4random_uniform(UInt32(range.upperBound - range.lowerBound + 1))) + range.lowerBound
+                right = Int(arc4random_uniform(UInt32(range.upperBound - range.lowerBound + 1))) + range.lowerBound
+                if left >= right {
+                    answer = left - right
+                } else {
+                    answer = right - left
+                }
+            } while answer < 0 || answer > 10
         }
+        
+        let finalLeft = left
+        let finalRight = right
         
         let themeItems = selectedTheme.items
         let themeItem = themeItems[Int(arc4random_uniform(UInt32(themeItems.count)))]

@@ -1,42 +1,102 @@
 import UIKit
 import AVFoundation
 
+enum PinyinType: String, CaseIterable {
+    case initial = "声母"
+    case final = "韵母"
+    case wholeSyllable = "整体认读音节"
+}
+
+struct PinyinItem {
+    let type: PinyinType
+    let pinyin: String
+    let phonetic: String
+    let tip: String
+    let tones: [String]
+}
+
 class PinyinViewController: UIViewController {
     
-    private let shengmu: [(String, String)] = [
-        ("b", "玻"), ("p", "坡"), ("m", "摸"), ("f", "佛"),
-        ("d", "得"), ("t", "特"), ("n", "讷"), ("l", "勒"),
-        ("g", "哥"), ("k", "科"), ("h", "喝"),
-        ("j", "基"), ("q", "欺"), ("x", "希"),
-        ("zh", "知"), ("ch", "吃"), ("sh", "诗"), ("r", "日"),
-        ("z", "资"), ("c", "次"), ("s", "思"),
-        ("y", "衣"), ("w", "乌")
+    private let shengmu: [PinyinItem] = [
+        PinyinItem(type: .initial, pinyin: "b", phonetic: "[p]", tip: "嘴巴闭紧，轻读", tones: []),
+        PinyinItem(type: .initial, pinyin: "p", phonetic: "[pʰ]", tip: "嘴巴闭紧，用力送气", tones: []),
+        PinyinItem(type: .initial, pinyin: "m", phonetic: "[m]", tip: "嘴巴闭紧，用鼻音", tones: []),
+        PinyinItem(type: .initial, pinyin: "f", phonetic: "[f]", tip: "牙齿碰嘴唇，轻读", tones: []),
+        PinyinItem(type: .initial, pinyin: "d", phonetic: "[t]", tip: "舌尖抵住上颚", tones: []),
+        PinyinItem(type: .initial, pinyin: "t", phonetic: "[tʰ]", tip: "舌尖抵住，用力送气", tones: []),
+        PinyinItem(type: .initial, pinyin: "n", phonetic: "[n]", tip: "舌尖抵住，用鼻音", tones: []),
+        PinyinItem(type: .initial, pinyin: "l", phonetic: "[l]", tip: "舌尖抵住，发音时气流从舌头两边流出", tones: []),
+        PinyinItem(type: .initial, pinyin: "g", phonetic: "[k]", tip: "舌根抵住软腭", tones: []),
+        PinyinItem(type: .initial, pinyin: "k", phonetic: "[kʰ]", tip: "舌根抵住，用力送气", tones: []),
+        PinyinItem(type: .initial, pinyin: "h", phonetic: "[x]", tip: "舌根接近软腭，发音时气流从缝隙中挤出", tones: []),
+        PinyinItem(type: .initial, pinyin: "j", phonetic: "[tɕ]", tip: "舌面前部抵住硬腭前部", tones: []),
+        PinyinItem(type: .initial, pinyin: "q", phonetic: "[tɕʰ]", tip: "舌面前部抵住，用力送气", tones: []),
+        PinyinItem(type: .initial, pinyin: "x", phonetic: "[ɕ]", tip: "舌面前部接近硬腭，发音时气流从缝隙中挤出", tones: []),
+        PinyinItem(type: .initial, pinyin: "zh", phonetic: "[ʈʂ]", tip: "舌尖翘起，抵住硬腭前部", tones: []),
+        PinyinItem(type: .initial, pinyin: "ch", phonetic: "[ʈʂʰ]", tip: "舌尖翘起，用力送气", tones: []),
+        PinyinItem(type: .initial, pinyin: "sh", phonetic: "[ʂ]", tip: "舌尖翘起，接近硬腭", tones: []),
+        PinyinItem(type: .initial, pinyin: "r", phonetic: "[ɻ]", tip: "舌尖翘起，接近硬腭，发音时声带振动", tones: []),
+        PinyinItem(type: .initial, pinyin: "z", phonetic: "[ts]", tip: "舌尖抵住齿背", tones: []),
+        PinyinItem(type: .initial, pinyin: "c", phonetic: "[tsʰ]", tip: "舌尖抵住齿背，用力送气", tones: []),
+        PinyinItem(type: .initial, pinyin: "s", phonetic: "[s]", tip: "舌尖接近齿背", tones: []),
+        PinyinItem(type: .initial, pinyin: "y", phonetic: "[j]", tip: "舌面前部接近硬腭", tones: []),
+        PinyinItem(type: .initial, pinyin: "w", phonetic: "[w]", tip: "嘴唇撅起，发音时声带振动", tones: [])
     ]
     
-    private let yunmu: [(String, String)] = [
-        ("a", "啊"), ("o", "哦"), ("e", "鹅"),
-        ("i", "衣"), ("u", "乌"), ("ü", "迂"),
-        ("ai", "爱"), ("ei", "诶"), ("ui", "威"),
-        ("ao", "熬"), ("ou", "欧"), ("iu", "优"),
-        ("ie", "耶"), ("üe", "约"), ("er", "耳"),
-        ("an", "安"), ("en", "恩"), ("in", "因"), ("un", "温"), ("ün", "晕"),
-        ("ang", "昂"), ("eng", "鞥"), ("ing", "英"), ("ong", "轰")
+    private let yunmu: [PinyinItem] = [
+        PinyinItem(type: .final, pinyin: "a", phonetic: "[a]", tip: "嘴巴张大，舌头放平", tones: ["ā", "á", "ǎ", "à"]),
+        PinyinItem(type: .final, pinyin: "o", phonetic: "[o]", tip: "嘴唇撅起，舌头缩后", tones: ["ō", "ó", "ǒ", "ò"]),
+        PinyinItem(type: .final, pinyin: "e", phonetic: "[ɤ]", tip: "嘴巴扁扁，舌头放平", tones: ["ē", "é", "ě", "è"]),
+        PinyinItem(type: .final, pinyin: "i", phonetic: "[i]", tip: "嘴巴扁扁，舌尖向前", tones: ["ī", "í", "ǐ", "ì"]),
+        PinyinItem(type: .final, pinyin: "u", phonetic: "[u]", tip: "嘴唇撅起，舌头缩后", tones: ["ū", "ú", "ǔ", "ù"]),
+        PinyinItem(type: .final, pinyin: "ü", phonetic: "[y]", tip: "嘴唇撅起成圆形，舌尖向前", tones: ["ǖ", "ǘ", "ǚ", "ǜ"]),
+        PinyinItem(type: .final, pinyin: "ai", phonetic: "[ai]", tip: "先发a，再向i滑动", tones: ["āi", "ái", "ǎi", "ài"]),
+        PinyinItem(type: .final, pinyin: "ei", phonetic: "[ei]", tip: "先发e，再向i滑动", tones: ["ēi", "éi", "ěi", "èi"]),
+        PinyinItem(type: .final, pinyin: "ui", phonetic: "[uei]", tip: "先发u，再向i滑动", tones: ["uī", "uí", "uǐ", "uì"]),
+        PinyinItem(type: .final, pinyin: "ao", phonetic: "[au]", tip: "先发a，再向o滑动", tones: ["āo", "áo", "ǎo", "ào"]),
+        PinyinItem(type: .final, pinyin: "ou", phonetic: "[ou]", tip: "先发o，再向u滑动", tones: ["ōu", "óu", "ǒu", "òu"]),
+        PinyinItem(type: .final, pinyin: "iu", phonetic: "[iou]", tip: "先发i，再向u滑动", tones: ["iū", "iú", "iǔ", "iù"]),
+        PinyinItem(type: .final, pinyin: "ie", phonetic: "[ie]", tip: "先发i，再向e滑动", tones: ["iē", "ié", "iě", "iè"]),
+        PinyinItem(type: .final, pinyin: "üe", phonetic: "[ye]", tip: "先发ü，再向e滑动", tones: ["üē", "üé", "üě", "üè"]),
+        PinyinItem(type: .final, pinyin: "er", phonetic: "[ɚ]", tip: "舌头向后卷，发音时声带振动", tones: ["ēr", "ér", "ěr", "èr"]),
+        PinyinItem(type: .final, pinyin: "an", phonetic: "[an]", tip: "先发a，再用鼻音收尾", tones: ["ān", "án", "ǎn", "àn"]),
+        PinyinItem(type: .final, pinyin: "en", phonetic: "[ən]", tip: "先发e，再用鼻音收尾", tones: ["ēn", "én", "ěn", "èn"]),
+        PinyinItem(type: .final, pinyin: "in", phonetic: "[in]", tip: "先发i，再用鼻音收尾", tones: ["īn", "ín", "ǐn", "ìn"]),
+        PinyinItem(type: .final, pinyin: "un", phonetic: "[uən]", tip: "先发u，再用鼻音收尾", tones: ["ūn", "ún", "ǔn", "ùn"]),
+        PinyinItem(type: .final, pinyin: "ün", phonetic: "[yn]", tip: "先发ü，再用鼻音收尾", tones: ["ǖn", "ǘn", "ǚn", "ǜn"]),
+        PinyinItem(type: .final, pinyin: "ang", phonetic: "[ɑŋ]", tip: "先发a，舌根抬起，用鼻音收尾", tones: ["āng", "áng", "ǎng", "àng"]),
+        PinyinItem(type: .final, pinyin: "eng", phonetic: "[ɤŋ]", tip: "先发e，舌根抬起，用鼻音收尾", tones: ["ēng", "éng", "ěng", "èng"]),
+        PinyinItem(type: .final, pinyin: "ing", phonetic: "[iŋ]", tip: "先发i，舌根抬起，用鼻音收尾", tones: ["īng", "íng", "ǐng", "ìng"]),
+        PinyinItem(type: .final, pinyin: "ong", phonetic: "[ʊŋ]", tip: "先发o，舌根抬起，用鼻音收尾", tones: ["ōng", "óng", "ǒng", "òng"])
     ]
     
-    private let ztren: [(String, String)] = [
-        ("zhi", "知"), ("chi", "吃"), ("shi", "诗"), ("ri", "日"),
-        ("zi", "资"), ("ci", "次"), ("si", "思"),
-        ("yi", "衣"), ("wu", "乌"), ("yu", "迂"),
-        ("ye", "耶"), ("yue", "约"), ("yuan", "圆"),
-        ("yin", "因"), ("yun", "云"), ("ying", "英")
+    private let ztren: [PinyinItem] = [
+        PinyinItem(type: .wholeSyllable, pinyin: "zhi", phonetic: "[ʈʂʅ]", tip: "整体认读，发音时舌头翘起", tones: ["zhī", "zhí", "zhǐ", "zhì"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "chi", phonetic: "[ʈʂʰʅ]", tip: "整体认读，用力送气", tones: ["chī", "chí", "chǐ", "chì"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "shi", phonetic: "[ʂʅ]", tip: "整体认读，翘舌音", tones: ["shī", "shí", "shǐ", "shì"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "ri", phonetic: "[ɻʅ]", tip: "整体认读，发音时声带振动", tones: ["rī", "rí", "rǐ", "rì"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "zi", phonetic: "[tsɿ]", tip: "整体认读，舌尖抵住齿背", tones: ["zī", "zí", "zǐ", "zì"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "ci", phonetic: "[tsʰɿ]", tip: "整体认读，用力送气", tones: ["cī", "cí", "cǐ", "cì"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "si", phonetic: "[sɿ]", tip: "整体认读，舌尖接近齿背", tones: ["sī", "sí", "sǐ", "sì"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "yi", phonetic: "[i]", tip: "整体认读，发音同i", tones: ["yī", "yí", "yǐ", "yì"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "wu", phonetic: "[u]", tip: "整体认读，发音同u", tones: ["wū", "wú", "wǔ", "wù"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "yu", phonetic: "[y]", tip: "整体认读，发音同ü", tones: ["yū", "yú", "yǔ", "yù"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "ye", phonetic: "[ie]", tip: "整体认读，发音同ie", tones: ["yē", "yé", "yě", "yè"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "yue", phonetic: "[ye]", tip: "整体认读，先发ü再发e", tones: ["yuē", "yué", "yuě", "yuè"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "yuan", phonetic: "[ɥɛn]", tip: "整体认读，发音同ü+an", tones: ["yuān", "yuán", "yuǎn", "yuàn"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "yin", phonetic: "[in]", tip: "整体认读，发音同in", tones: ["yīn", "yín", "yǐn", "yìn"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "yun", phonetic: "[yn]", tip: "整体认读，发音同ün", tones: ["yūn", "yún", "yǔn", "yùn"]),
+        PinyinItem(type: .wholeSyllable, pinyin: "ying", phonetic: "[iŋ]", tip: "整体认读，发音同ing", tones: ["yīng", "yíng", "yǐng", "yìng"])
     ]
     
     private var collectionView: UICollectionView!
     private var currentCategory: Int = 0
-    private var selectedShengmu: String?
-    private var selectedYunmu: String?
+    private var selectedShengmu: PinyinItem?
+    private var selectedYunmu: PinyinItem?
     private var comboLabel: UILabel!
     private var comboHintLabel: UILabel!
+    private var tipLabel: UILabel!
+    private var phoneticLabel: UILabel!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -77,6 +137,27 @@ class PinyinViewController: UIViewController {
         segmentControl.setTitleTextAttributes([.foregroundColor: Theme.mutedGray], for: .normal)
         view.addSubview(segmentControl)
         
+        let infoContainer = UIView()
+        infoContainer.backgroundColor = Theme.cardBackground.withAlphaComponent(0.6)
+        infoContainer.layer.cornerRadius = 12
+        infoContainer.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(infoContainer)
+        
+        phoneticLabel = UILabel()
+        phoneticLabel.font = UIFont.systemFont(ofSize: 16)
+        phoneticLabel.textColor = Theme.electricBlue
+        phoneticLabel.textAlignment = .center
+        phoneticLabel.translatesAutoresizingMaskIntoConstraints = false
+        infoContainer.addSubview(phoneticLabel)
+        
+        tipLabel = UILabel()
+        tipLabel.font = Theme.Font.regular(size: 14)
+        tipLabel.textColor = Theme.mutedGray
+        tipLabel.textAlignment = .center
+        tipLabel.numberOfLines = 2
+        tipLabel.translatesAutoresizingMaskIntoConstraints = false
+        infoContainer.addSubview(tipLabel)
+        
         let comboContainer = UIView()
         comboContainer.backgroundColor = Theme.cardBackground.withAlphaComponent(0.8)
         comboContainer.layer.cornerRadius = 16
@@ -102,7 +183,7 @@ class PinyinViewController: UIViewController {
         
         comboHintLabel = UILabel()
         comboHintLabel.text = ""
-        comboHintLabel.font = Theme.Font.regular(size: 18)
+        comboHintLabel.font = Theme.Font.regular(size: 14)
         comboHintLabel.textColor = Theme.neonPink
         comboHintLabel.textAlignment = .center
         comboHintLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -129,22 +210,30 @@ class PinyinViewController: UIViewController {
         comboContainer.addSubview(clearComboButton)
         
         NSLayoutConstraint.activate([
+            phoneticLabel.topAnchor.constraint(equalTo: infoContainer.topAnchor, constant: 8),
+            phoneticLabel.centerXAnchor.constraint(equalTo: infoContainer.centerXAnchor),
+            
+            tipLabel.topAnchor.constraint(equalTo: phoneticLabel.bottomAnchor, constant: 4),
+            tipLabel.leadingAnchor.constraint(equalTo: infoContainer.leadingAnchor, constant: 12),
+            tipLabel.trailingAnchor.constraint(equalTo: infoContainer.trailingAnchor, constant: -12),
+            tipLabel.bottomAnchor.constraint(equalTo: infoContainer.bottomAnchor, constant: -8),
+            
             comboTitleLabel.topAnchor.constraint(equalTo: comboContainer.topAnchor, constant: 12),
             comboTitleLabel.centerXAnchor.constraint(equalTo: comboContainer.centerXAnchor),
             
-            comboLabel.topAnchor.constraint(equalTo: comboTitleLabel.bottomAnchor, constant: 12),
+            comboLabel.topAnchor.constraint(equalTo: comboTitleLabel.bottomAnchor, constant: 8),
             comboLabel.centerXAnchor.constraint(equalTo: comboContainer.centerXAnchor),
             
             comboHintLabel.topAnchor.constraint(equalTo: comboLabel.bottomAnchor, constant: 4),
             comboHintLabel.centerXAnchor.constraint(equalTo: comboContainer.centerXAnchor),
             
-            speakComboButton.topAnchor.constraint(equalTo: comboHintLabel.bottomAnchor, constant: 16),
+            speakComboButton.topAnchor.constraint(equalTo: comboHintLabel.bottomAnchor, constant: 12),
             speakComboButton.leadingAnchor.constraint(equalTo: comboContainer.leadingAnchor, constant: 20),
-            speakComboButton.heightAnchor.constraint(equalToConstant: 44),
+            speakComboButton.heightAnchor.constraint(equalToConstant: 40),
             
-            clearComboButton.topAnchor.constraint(equalTo: comboHintLabel.bottomAnchor, constant: 16),
+            clearComboButton.topAnchor.constraint(equalTo: comboHintLabel.bottomAnchor, constant: 12),
             clearComboButton.trailingAnchor.constraint(equalTo: comboContainer.trailingAnchor, constant: -20),
-            clearComboButton.heightAnchor.constraint(equalToConstant: 44),
+            clearComboButton.heightAnchor.constraint(equalToConstant: 40),
             clearComboButton.widthAnchor.constraint(equalTo: speakComboButton.widthAnchor),
             clearComboButton.leadingAnchor.constraint(equalTo: speakComboButton.trailingAnchor, constant: 16),
             clearComboButton.bottomAnchor.constraint(equalTo: comboContainer.bottomAnchor, constant: -16)
@@ -172,7 +261,11 @@ class PinyinViewController: UIViewController {
             segmentControl.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             segmentControl.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
-            comboContainer.topAnchor.constraint(equalTo: segmentControl.bottomAnchor, constant: 16),
+            infoContainer.topAnchor.constraint(equalTo: segmentControl.bottomAnchor, constant: 12),
+            infoContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            infoContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            
+            comboContainer.topAnchor.constraint(equalTo: infoContainer.bottomAnchor, constant: 12),
             comboContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             comboContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
@@ -183,6 +276,7 @@ class PinyinViewController: UIViewController {
         ])
         
         title = "识拼音"
+        updateInfoLabel(nil)
     }
     
     @objc private func segmentChanged(_ sender: UISegmentedControl) {
@@ -194,26 +288,37 @@ class PinyinViewController: UIViewController {
         
         let comboContainer = view.viewWithTag(100)
         comboContainer?.isHidden = currentCategory != 3
+        updateInfoLabel(nil)
     }
     
     private func updateComboLabel() {
         if let s = selectedShengmu, let y = selectedYunmu {
-            comboLabel.text = s + y
+            comboLabel.text = s.pinyin + y.pinyin
         } else if let s = selectedShengmu {
-            comboLabel.text = s + "_"
+            comboLabel.text = s.pinyin + "_"
         } else if let y = selectedYunmu {
-            comboLabel.text = "_" + y
+            comboLabel.text = "_" + y.pinyin
         } else {
             comboLabel.text = "点击声母和韵母组合"
         }
         comboHintLabel.text = ""
     }
     
+    private func updateInfoLabel(_ item: PinyinItem?) {
+        if let item = item {
+            phoneticLabel.text = item.phonetic
+            tipLabel.text = item.tip
+        } else {
+            phoneticLabel.text = "点击拼音查看发音提示"
+            tipLabel.text = ""
+        }
+    }
+    
     @objc private func speakCombo() {
         if let s = selectedShengmu, let y = selectedYunmu {
-            let pinyin = s + y
+            let pinyin = s.pinyin + y.pinyin
             speakPinyin(pinyin)
-            comboHintLabel.text = "拼读: \(s) - \(y) - \(pinyin)"
+            comboHintLabel.text = "拼读: \(s.pinyin) + \(y.pinyin) = \(pinyin)"
         } else {
             speakPinyin("请选择声母和韵母")
         }
@@ -227,37 +332,15 @@ class PinyinViewController: UIViewController {
     }
     
     private func speakPinyin(_ text: String) {
-        var speakText = text
-        
-        for item in shengmu {
-            if item.0 == text {
-                speakText = item.1
-                break
-            }
-        }
-        
-        for item in yunmu {
-            if item.0 == text {
-                speakText = item.1
-                break
-            }
-        }
-        
-        for item in ztren {
-            if item.0 == text {
-                speakText = item.1
-                break
-            }
-        }
-        
         let synthesizer = AVSpeechSynthesizer()
-        let utterance = AVSpeechUtterance(string: speakText)
+        let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
         utterance.rate = 0.4
+        utterance.pitchMultiplier = 1.1
         synthesizer.speak(utterance)
     }
     
-    private func getCurrentData() -> [(String, String)] {
+    private func getCurrentData() -> [PinyinItem] {
         switch currentCategory {
         case 0: return shengmu
         case 1: return yunmu
@@ -281,12 +364,12 @@ extension PinyinViewController: UICollectionViewDataSource, UICollectionViewDele
         if currentCategory == 3 {
             if indexPath.item < shengmu.count {
                 let item = shengmu[indexPath.item]
-                let isSelected = selectedShengmu == item.0
-                cell.configure(pinyin: item.0, hint: item.1, isSelected: isSelected, color: Theme.electricBlue)
+                let isSelected = selectedShengmu?.pinyin == item.pinyin
+                cell.configure(item: item, isSelected: isSelected, color: Theme.electricBlue)
             } else {
                 let item = yunmu[indexPath.item - shengmu.count]
-                let isSelected = selectedYunmu == item.0
-                cell.configure(pinyin: item.0, hint: item.1, isSelected: isSelected, color: Theme.neonPink)
+                let isSelected = selectedYunmu?.pinyin == item.pinyin
+                cell.configure(item: item, isSelected: isSelected, color: Theme.neonPink)
             }
         } else {
             let item = getCurrentData()[indexPath.item]
@@ -296,7 +379,7 @@ extension PinyinViewController: UICollectionViewDataSource, UICollectionViewDele
             case 1: color = Theme.neonPink
             default: color = UIColor(hex: "4CAF50")
             }
-            cell.configure(pinyin: item.0, hint: item.1, isSelected: false, color: color)
+            cell.configure(item: item, isSelected: false, color: color)
         }
         
         return cell
@@ -306,18 +389,21 @@ extension PinyinViewController: UICollectionViewDataSource, UICollectionViewDele
         if currentCategory == 3 {
             if indexPath.item < shengmu.count {
                 let item = shengmu[indexPath.item]
-                selectedShengmu = item.0
-                speakPinyin(item.0)
+                selectedShengmu = item
+                speakPinyin(item.pinyin)
+                updateInfoLabel(item)
             } else {
                 let item = yunmu[indexPath.item - shengmu.count]
-                selectedYunmu = item.0
-                speakPinyin(item.0)
+                selectedYunmu = item
+                speakPinyin(item.pinyin)
+                updateInfoLabel(item)
             }
             updateComboLabel()
             collectionView.reloadData()
         } else {
             let item = getCurrentData()[indexPath.item]
-            speakPinyin(item.0)
+            speakPinyin(item.pinyin)
+            updateInfoLabel(item)
             
             if let cell = collectionView.cellForItem(at: indexPath) as? PinyinCell {
                 cell.animateTap()
@@ -329,16 +415,17 @@ extension PinyinViewController: UICollectionViewDataSource, UICollectionViewDele
 class PinyinCell: UICollectionViewCell {
     private let pinyinLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.systemFont(ofSize: 20, weight: .bold)
+        label.font = UIFont.systemFont(ofSize: 22, weight: .bold)
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
     
-    private let hintLabel: UILabel = {
+    private let tipLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.systemFont(ofSize: 10)
+        label.font = UIFont.systemFont(ofSize: 9)
         label.textAlignment = .center
+        label.numberOfLines = 2
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -347,14 +434,15 @@ class PinyinCell: UICollectionViewCell {
         super.init(frame: frame)
         contentView.layer.cornerRadius = 12
         contentView.addSubview(pinyinLabel)
-        contentView.addSubview(hintLabel)
+        contentView.addSubview(tipLabel)
         
         NSLayoutConstraint.activate([
             pinyinLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
             pinyinLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             
-            hintLabel.topAnchor.constraint(equalTo: pinyinLabel.bottomAnchor, constant: 2),
-            hintLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor)
+            tipLabel.topAnchor.constraint(equalTo: pinyinLabel.bottomAnchor, constant: 2),
+            tipLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 2),
+            tipLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -2)
         ])
     }
     
@@ -362,11 +450,22 @@ class PinyinCell: UICollectionViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func configure(pinyin: String, hint: String, isSelected: Bool, color: UIColor) {
-        pinyinLabel.text = pinyin
+    func configure(item: PinyinItem, isSelected: Bool, color: UIColor) {
+        pinyinLabel.text = item.pinyin
         pinyinLabel.textColor = isSelected ? .white : color
-        hintLabel.text = hint
-        hintLabel.textColor = color.withAlphaComponent(0.7)
+        
+        if item.type == .initial {
+            tipLabel.text = "声母"
+        } else if item.type == .final {
+            if !item.tones.isEmpty {
+                tipLabel.text = item.tones.first
+            } else {
+                tipLabel.text = "韵母"
+            }
+        } else {
+            tipLabel.text = "整体"
+        }
+        tipLabel.textColor = color.withAlphaComponent(0.7)
         
         contentView.backgroundColor = isSelected ? color : Theme.cardBackground.withAlphaComponent(0.6)
         contentView.layer.borderWidth = isSelected ? 0 : 2
