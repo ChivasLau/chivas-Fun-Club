@@ -1631,7 +1631,7 @@ class PosterModeViewController: UIViewController {
             brushBtn.titleLabel?.font = Theme.Font.regular(size: 14)
             brushBtn.contentHorizontalAlignment = .left
             brushBtn.translatesAutoresizingMaskIntoConstraints = false
-            brushBtn.tag = BrushType.allCases.firstIndex(of: brush) ?? 0
+            brushBtn.tag = PosterBrushType.allCases.firstIndex(of: brush) ?? 0
             brushBtn.addTarget(self, action: #selector(brushTypeSelected(_:)), for: .touchUpInside)
             brushStack.addArrangedSubview(brushBtn)
         }
