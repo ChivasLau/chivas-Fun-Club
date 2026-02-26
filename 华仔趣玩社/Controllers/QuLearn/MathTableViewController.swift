@@ -340,7 +340,7 @@ class MathTableViewController: UIViewController {
         
         NSLayoutConstraint.activate([
             textLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            textLabel.centerYAnchor.constraint(equalTo: container.centerXAnchor),
+            textLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
             textLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
             textLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8)
         ])
