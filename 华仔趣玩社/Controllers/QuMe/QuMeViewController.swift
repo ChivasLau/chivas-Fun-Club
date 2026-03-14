@@ -209,7 +209,7 @@ class QuMeViewController: UIViewController {
             适配: iPad Air 1代 (iOS 12+)
             
             一款专为iPad打造的工具箱应用
-            趣看 · 趣玩 · 趣速 · 趣搜索
+            趣看 · 趣玩 · 趣速 · 趣AI
             
             © 2026 华仔趣玩社
             """,

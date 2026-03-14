@@ -75,12 +75,12 @@ class MainTabBarController: UITabBarController {
         let quCategory = UINavigationController(rootViewController: QuCategoryViewController())
         quCategory.tabBarItem = UITabBarItem(title: "趣分类", image: nil, tag: 1)
         
-        let quSearch = UINavigationController(rootViewController: QuSearchViewController())
-        quSearch.tabBarItem = UITabBarItem(title: "趣搜索", image: nil, tag: 2)
+        let quAI = UINavigationController(rootViewController: QuAIViewController())
+        quAI.tabBarItem = UITabBarItem(title: "趣AI", image: nil, tag: 2)
         
         let quMe = UINavigationController(rootViewController: QuMeViewController())
         quMe.tabBarItem = UITabBarItem(title: "趣我", image: nil, tag: 3)
         
-        viewControllers = [quHome, quCategory, quSearch, quMe]
+        viewControllers = [quHome, quCategory, quAI, quMe]
     }
 }
