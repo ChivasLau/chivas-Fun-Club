@@ -17,8 +17,6 @@ class QuAIViewController: UIViewController {
     private let userAvatar = "👤"
     private let aiAvatar = "🤖"
     
-    private let searchKeywords = ["搜索", "查找", "查询", "最新", "天气", "新闻", "价格", "怎么", "如何", "哪里", "什么", "哪个"]
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -175,9 +173,7 @@ class QuAIViewController: UIViewController {
     }
     
     private func needsWebSearch(_ question: String) -> Bool {
-        if !isSearchEnabled { return false }
-        let lowercased = question.lowercased()
-        return searchKeywords.contains { lowercased.contains($0) }
+        return isSearchEnabled
     }
     
     @objc private func sendMessage() {
@@ -233,9 +229,55 @@ class QuAIViewController: UIViewController {
     }
     
     private func performWebSearch(query: String) -> String {
+        let mcpServerURL = "http://localhost:3000/mcp"
+        
+        let mcpRequest: [String: Any] = [
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": [
+                "name": "web_search",
+                "arguments": ["query": query]
+            ]
+        ]
+        
+        guard let url = URL(string: mcpServerURL),
+              let requestBody = try? JSONSerialization.data(withJSONObject: mcpRequest) else {
+            return mcpFallbackSearch(query: query)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = requestBody
+        request.timeoutInterval = 15
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        var responseData: Data?
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let data = data {
+                responseData = data
+            }
+            semaphore.signal()
+        }
+        task.resume()
+        semaphore.wait()
+        
+        if let data = responseData,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let result = json["result"] as? [String: Any],
+           let content = result["content"] as? String {
+            return content
+        }
+        
+        return mcpFallbackSearch(query: query)
+    }
+    
+    private func mcpFallbackSearch(query: String) -> String {
         let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
         
-        let urlString = "https://api.tavily.com/search?q=\(encodedQuery)&api_key=tvly-DUMMY-KEY-FOR-DEMO"
+        let urlString = "https://ddg-api.vercel.app/search?q=\(encodedQuery)&limit=5"
         
         guard let url = URL(string: urlString) else {
             return ""
@@ -256,13 +298,12 @@ class QuAIViewController: UIViewController {
         semaphore.wait()
         
         if let data = responseData,
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let results = json["results"] as? [[String: Any]] {
+           let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
             var searchText = ""
-            for (index, result) in results.prefix(5).enumerated() {
+            for (index, result) in json.enumerated() {
                 let title = result["title"] as? String ?? ""
-                let content = result["content"] as? String ?? ""
-                searchText += "\(index + 1). \(title): \(content)\n"
+                let snippet = result["snippet"] as? String ?? ""
+                searchText += "\(index + 1). \(title)\n\(snippet)\n\n"
             }
             return searchText
         }
