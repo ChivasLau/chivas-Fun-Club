@@ -234,43 +234,38 @@ class QuAIViewController: UIViewController {
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: requestBody)
         
-        do {
-            let semaphore = DispatchSemaphore(value: 0)
-            var responseData: Data?
-            var responseError: Error?
-            
-            let task = URLSession.shared.dataTask(with: request) { data, _, error in
-                responseData = data
-                responseError = error
-                semaphore.signal()
-            }
-            task.resume()
-            semaphore.wait()
-            
-            if let error = responseError {
-                return "抱歉，我遇到了网络错误: \(error.localizedDescription)"
-            }
-            
-            if let data = responseData {
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let choices = json["choices"] as? [[String: Any]],
-                   let firstChoice = choices.first,
-                   let message = firstChoice["message"] as? [String: Any],
-                   let content = message["content"] as? String {
-                    return content
-                } else if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let error = json["error"] as? [String: Any],
-                       let message = error["message"] as? String {
-                        return "API错误: \(message)"
-                    }
+        let semaphore = DispatchSemaphore(value: 0)
+        var responseData: Data?
+        var responseError: Error?
+        
+        let task = URLSession.shared.dataTask(with: request) { data, _, error in
+            responseData = data
+            responseError = error
+            semaphore.signal()
+        }
+        task.resume()
+        semaphore.wait()
+        
+        if let error = responseError {
+            return "抱歉，我遇到了网络错误: \(error.localizedDescription)"
+        }
+        
+        if let data = responseData {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let choices = json["choices"] as? [[String: Any]],
+               let firstChoice = choices.first,
+               let message = firstChoice["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                return content
+            } else if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let error = json["error"] as? [String: Any],
+                   let message = error["message"] as? String {
+                    return "API错误: \(message)"
                 }
             }
-            
-            return generateFallbackResponse(for: question)
-            
-        } catch {
-            return "抱歉，我遇到了错误: \(error.localizedDescription)"
         }
+        
+        return generateFallbackResponse(for: question)
     }
     
     private func generateFallbackResponse(for question: String) -> String {
@@ -365,7 +360,7 @@ class ChatMessageCell: UITableViewCell {
     private let avatarLabel = UILabel()
     private let messageLabel = UILabel()
     private let bubbleView = UIView()
-    private let searchingIndicator = UIActivityIndicatorView(style: .medium)
+    private let searchingIndicator = UIActivityIndicatorView(style: .gray)
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
