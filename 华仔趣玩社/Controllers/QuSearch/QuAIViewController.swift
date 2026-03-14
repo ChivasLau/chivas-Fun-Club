@@ -11,9 +11,13 @@ class QuAIViewController: UIViewController {
     private var sendButton: UIButton!
     private var loadingIndicator: UIActivityIndicatorView!
     private var isLoading = false
+    private var isSearchEnabled = false
+    private var searchToggleButton: UIButton!
     
     private let userAvatar = "👤"
     private let aiAvatar = "🤖"
+    
+    private let searchKeywords = ["搜索", "查找", "查询", "最新", "天气", "新闻", "价格", "怎么", "如何", "哪里", "什么", "哪个"]
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -94,12 +98,13 @@ class QuAIViewController: UIViewController {
         sendButton.addTarget(self, action: #selector(sendMessage), for: .touchUpInside)
         inputContainer.addSubview(sendButton)
         
-        let searchToggle = UIButton(type: .system)
-        searchToggle.setTitle("🌐 联网搜索", for: .normal)
-        searchToggle.titleLabel?.font = Theme.Font.regular(size: 12)
-        searchToggle.setTitleColor(Theme.neonPink, for: .normal)
-        searchToggle.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(searchToggle)
+        searchToggleButton = UIButton(type: .system)
+        searchToggleButton.setTitle("🌐 联网搜索: 关闭", for: .normal)
+        searchToggleButton.titleLabel?.font = Theme.Font.regular(size: 12)
+        searchToggleButton.setTitleColor(Theme.mutedGray, for: .normal)
+        searchToggleButton.translatesAutoresizingMaskIntoConstraints = false
+        searchToggleButton.addTarget(self, action: #selector(toggleSearch), for: .touchUpInside)
+        view.addSubview(searchToggleButton)
         
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
@@ -111,13 +116,13 @@ class QuAIViewController: UIViewController {
             tableView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: searchToggle.topAnchor, constant: -8),
+            tableView.bottomAnchor.constraint(equalTo: searchToggleButton.topAnchor, constant: -8),
             
             loadingIndicator.centerXAnchor.constraint(equalTo: tableView.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: tableView.centerYAnchor),
             
-            searchToggle.bottomAnchor.constraint(equalTo: inputContainer.topAnchor, constant: -8),
-            searchToggle.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            searchToggleButton.bottomAnchor.constraint(equalTo: inputContainer.topAnchor, constant: -8),
+            searchToggleButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
             inputContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             inputContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
@@ -158,6 +163,23 @@ class QuAIViewController: UIViewController {
         messages.append((role: "assistant", content: welcomeMsg, isSearching: false))
     }
     
+    @objc private func toggleSearch() {
+        isSearchEnabled.toggle()
+        if isSearchEnabled {
+            searchToggleButton.setTitle("🌐 联网搜索: 开启", for: .normal)
+            searchToggleButton.setTitleColor(Theme.electricBlue, for: .normal)
+        } else {
+            searchToggleButton.setTitle("🌐 联网搜索: 关闭", for: .normal)
+            searchToggleButton.setTitleColor(Theme.mutedGray, for: .normal)
+        }
+    }
+    
+    private func needsWebSearch(_ question: String) -> Bool {
+        if !isSearchEnabled { return false }
+        let lowercased = question.lowercased()
+        return searchKeywords.contains { lowercased.contains($0) }
+    }
+    
     @objc private func sendMessage() {
         guard let text = inputTextField.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         
@@ -182,10 +204,15 @@ class QuAIViewController: UIViewController {
         DispatchQueue.global().async { [weak self] in
             guard let self = self else { return }
             
+            var searchResults = ""
+            if self.needsWebSearch(question) {
+                searchResults = self.performWebSearch(query: question)
+            }
+            
             let context = self.buildContext()
+            let searchContext = searchResults.isEmpty ? "" : "\n\n搜索结果:\n\(searchResults)\n\n"
             let prompt = """
-            你是一个友好的AI助手，名叫"趣AI"。请用中文回答用户的问题。
-            \(context)
+            你是一个友好的AI助手，名叫"趣AI"。请用中文回答用户的问题。\(searchContext)\(context)
             
             用户问题: \(question)
             
@@ -203,6 +230,44 @@ class QuAIViewController: UIViewController {
                 self.scrollToBottom()
             }
         }
+    }
+    
+    private func performWebSearch(query: String) -> String {
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        
+        let urlString = "https://api.tavily.com/search?q=\(encodedQuery)&api_key=tvly-DUMMY-KEY-FOR-DEMO"
+        
+        guard let url = URL(string: urlString) else {
+            return ""
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        var responseData: Data?
+        
+        let task = URLSession.shared.dataTask(with: request) { data, _, _ in
+            responseData = data
+            semaphore.signal()
+        }
+        task.resume()
+        semaphore.wait()
+        
+        if let data = responseData,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let results = json["results"] as? [[String: Any]] {
+            var searchText = ""
+            for (index, result) in results.prefix(5).enumerated() {
+                let title = result["title"] as? String ?? ""
+                let content = result["content"] as? String ?? ""
+                searchText += "\(index + 1). \(title): \(content)\n"
+            }
+            return searchText
+        }
+        
+        return ""
     }
     
     private func buildContext() -> String {
