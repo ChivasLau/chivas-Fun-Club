@@ -229,55 +229,9 @@ class QuAIViewController: UIViewController {
     }
     
     private func performWebSearch(query: String) -> String {
-        let mcpServerURL = "http://localhost:3000/mcp"
-        
-        let mcpRequest: [String: Any] = [
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "tools/call",
-            "params": [
-                "name": "web_search",
-                "arguments": ["query": query]
-            ]
-        ]
-        
-        guard let url = URL(string: mcpServerURL),
-              let requestBody = try? JSONSerialization.data(withJSONObject: mcpRequest) else {
-            return mcpFallbackSearch(query: query)
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = requestBody
-        request.timeoutInterval = 15
-        
-        let semaphore = DispatchSemaphore(value: 0)
-        var responseData: Data?
-        
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            if let data = data {
-                responseData = data
-            }
-            semaphore.signal()
-        }
-        task.resume()
-        semaphore.wait()
-        
-        if let data = responseData,
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let result = json["result"] as? [String: Any],
-           let content = result["content"] as? String {
-            return content
-        }
-        
-        return mcpFallbackSearch(query: query)
-    }
-    
-    private func mcpFallbackSearch(query: String) -> String {
         let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
         
-        let urlString = "https://ddg-api.vercel.app/search?q=\(encodedQuery)&limit=5"
+        let urlString = "https://html.duckduckgo.com/html/?q=\(encodedQuery)&b=1"
         
         guard let url = URL(string: urlString) else {
             return ""
@@ -285,7 +239,8 @@ class QuAIViewController: UIViewController {
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.timeoutInterval = 10
+        request.setValue("Mozilla/5.0 (iPad; CPU OS 12_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 15
         
         let semaphore = DispatchSemaphore(value: 0)
         var responseData: Data?
@@ -297,18 +252,52 @@ class QuAIViewController: UIViewController {
         task.resume()
         semaphore.wait()
         
-        if let data = responseData,
-           let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            var searchText = ""
-            for (index, result) in json.enumerated() {
-                let title = result["title"] as? String ?? ""
-                let snippet = result["snippet"] as? String ?? ""
-                searchText += "\(index + 1). \(title)\n\(snippet)\n\n"
-            }
-            return searchText
+        guard let data = responseData,
+              let html = String(data: data, encoding: .utf8) else {
+            return ""
         }
         
-        return ""
+        var searchResults: [(title: String, snippet: String)] = []
+        
+        let titlePattern = "<a class=\"result__a\" href=\"[^\"]*\" rel=\"nofollow\">(.*?)</a>"
+        let snippetPattern = "<a class=\"result__snippet\" href=\"[^\"]*\">(.*?)</a>"
+        
+        if let titleRegex = try? NSRegularExpression(pattern: titlePattern, options: []),
+           let snippetRegex = try? NSRegularExpression(pattern: snippetPattern, options: []) {
+            
+            let titleMatches = titleRegex.matches(in: html, options: [], range: NSRange(html.startIndex..., in: html))
+            let snippetMatches = snippetRegex.matches(in: html, options: [], range: NSRange(html.startIndex..., in: html))
+            
+            for i in 0..<min(titleMatches.count, 5) {
+                if let titleRange = Range(titleMatches[i].range(at: 1), in: html) {
+                    var title = String(html[titleRange])
+                    title = title.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                    title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    var snippet = ""
+                    if i < snippetMatches.count, let snippetRange = Range(snippetMatches[i].range(at: 1), in: html) {
+                        snippet = String(html[snippetRange])
+                        snippet = snippet.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                        snippet = snippet.trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                    
+                    if !title.isEmpty {
+                        searchResults.append((title: title, snippet: snippet))
+                    }
+                }
+            }
+        }
+        
+        var resultText = ""
+        for (index, result) in searchResults.enumerated() {
+            resultText += "\(index + 1). \(result.title)\n"
+            if !result.snippet.isEmpty {
+                resultText += "   \(result.snippet)\n"
+            }
+            resultText += "\n"
+        }
+        
+        return resultText
     }
     
     private func buildContext() -> String {
@@ -408,24 +397,18 @@ class QuAIViewController: UIViewController {
     }
     
     @objc private func keyboardWillShow(_ notification: Notification) {
-        guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+        guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
+              let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double else { return }
         
-        let keyboardHeight = keyboardFrame.height
-        inputContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -keyboardHeight + view.safeAreaInsets.bottom - 16).isActive = true
+        let keyboardHeight = keyboardFrame.height - view.safeAreaInsets.bottom
         
-        UIView.animate(withDuration: 0.3) {
-            self.view.layoutIfNeeded()
-        }
+        inputContainer.frame.origin.y = view.bounds.height - keyboardHeight - 56 - view.safeAreaInsets.bottom
         
         scrollToBottom()
     }
     
     @objc private func keyboardWillHide(_ notification: Notification) {
-        inputContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16).isActive = true
-        
-        UIView.animate(withDuration: 0.3) {
-            self.view.layoutIfNeeded()
-        }
+        inputContainer.frame.origin.y = view.bounds.height - 56 - view.safeAreaInsets.bottom - 16
     }
 }
 
