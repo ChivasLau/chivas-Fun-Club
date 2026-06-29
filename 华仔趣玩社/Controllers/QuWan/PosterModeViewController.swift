@@ -597,7 +597,7 @@ class PosterModeViewController: UIViewController {
         let alert = UIAlertController(title: "编辑文字", message: nil, preferredStyle: .actionSheet)
         
         for preset in KidTextPreset.allCases {
-            alert.addAction(UIAlertAction(title: preset.rawValue, style: .default) { [weak self] _ in
+            alert.addAction(UIAlertAction(title: preset.rawValue, style: .default) { _ in
                 element.text = preset.rawValue
                 (view as? UILabel)?.text = preset.rawValue
             })

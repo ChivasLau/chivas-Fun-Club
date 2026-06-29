@@ -480,7 +480,7 @@ class QuAIImageGenTabController: UIViewController {
         let body: [String: Any] = ["model": "agnes-image-2.0-flash", "prompt": prompt, "size": size, "n": 1]
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
-        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+        URLSession.shared.dataTask(with: req) { data, _, _ in
             DispatchQueue.main.async {
                 progress.setProgress(0.8, animated: true)
                 if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -497,7 +497,7 @@ class QuAIImageGenTabController: UIViewController {
                         }
                     }.resume()
                 } else {
-                    showToast("生成失败，请重试")
+                    self.showToast("生成失败，请重试")
                     progress.isHidden = true
                 }
             }
@@ -689,7 +689,7 @@ class QuAIImageEditTabController: UIViewController {
                         }
                     }.resume()
                 } else {
-                    showToast("修图失败，请重试")
+                    self?.showToast("修图失败，请重试")
                     progress.isHidden = true
                 }
             }

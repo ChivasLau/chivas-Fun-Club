@@ -534,7 +534,7 @@ class MathTableViewController: UIViewController {
         answerStack.tag = 105
         questionView.addSubview(answerStack)
         
-        let range = selectedDifficulty.range
+        _ = selectedDifficulty.range
         let displayCount = 11
         
         for i in 0..<displayCount {
