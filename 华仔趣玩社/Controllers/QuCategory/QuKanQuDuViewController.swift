@@ -19,7 +19,6 @@ class QuKanQuDuViewController: UIViewController {
     private var sidebarWidthConstraint: NSLayoutConstraint!
     private var toggleButton: UIButton!
     private var webView: WKWebView!
-    private var contentView: UIView!
     private var siteButtons: [UIButton] = []
     
     override func viewDidLoad() {
@@ -40,14 +39,6 @@ class QuKanQuDuViewController: UIViewController {
         topBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(topBar)
         
-        toggleButton = UIButton(type: .system)
-        toggleButton.setTitle("☰", for: .normal)
-        toggleButton.titleLabel?.font = Theme.Font.bold(size: 22)
-        toggleButton.setTitleColor(Theme.electricBlue, for: .normal)
-        toggleButton.translatesAutoresizingMaskIntoConstraints = false
-        toggleButton.addTarget(self, action: #selector(toggleSidebar), for: .touchUpInside)
-        topBar.addSubview(toggleButton)
-        
         let titleLabel = UILabel()
         titleLabel.text = "🎬 趣影视"
         titleLabel.font = Theme.Font.bold(size: 22)
@@ -55,23 +46,22 @@ class QuKanQuDuViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         topBar.addSubview(titleLabel)
         
-        let backButton = UIButton(type: .system)
-        backButton.setTitle("‹ 返回", for: .normal)
-        backButton.titleLabel?.font = Theme.Font.bold(size: 16)
-        backButton.setTitleColor(Theme.electricBlue, for: .normal)
-        backButton.translatesAutoresizingMaskIntoConstraints = false
-        backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
-        topBar.addSubview(backButton)
-        
-        contentView = UIView()
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(contentView)
-        
         let webConfig = WKWebViewConfiguration()
         webView = WKWebView(frame: .zero, configuration: webConfig)
         webView.backgroundColor = .clear
+        webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
         webView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(webView)
+        view.addSubview(webView)
+        
+        toggleButton = UIButton(type: .system)
+        toggleButton.setTitle("☰", for: .normal)
+        toggleButton.titleLabel?.font = Theme.Font.bold(size: 24)
+        toggleButton.setTitleColor(Theme.electricBlue, for: .normal)
+        toggleButton.backgroundColor = Theme.cardBackground.withAlphaComponent(0.8)
+        toggleButton.layer.cornerRadius = 22
+        toggleButton.translatesAutoresizingMaskIntoConstraints = false
+        toggleButton.addTarget(self, action: #selector(toggleSidebar), for: .touchUpInside)
+        view.addSubview(toggleButton)
         
         setupSidebar()
         
@@ -81,24 +71,18 @@ class QuKanQuDuViewController: UIViewController {
             topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             topBar.heightAnchor.constraint(equalToConstant: 44),
             
-            backButton.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 12),
-            backButton.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            
-            toggleButton.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 12),
-            toggleButton.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            
             titleLabel.centerXAnchor.constraint(equalTo: topBar.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
             
-            contentView.topAnchor.constraint(equalTo: topBar.bottomAnchor),
-            contentView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            webView.topAnchor.constraint(equalTo: topBar.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
-            webView.topAnchor.constraint(equalTo: contentView.topAnchor),
-            webView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            webView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            webView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor)
+            toggleButton.topAnchor.constraint(equalTo: topBar.bottomAnchor, constant: 8),
+            toggleButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+            toggleButton.widthAnchor.constraint(equalToConstant: 44),
+            toggleButton.heightAnchor.constraint(equalToConstant: 44)
         ])
         
         title = "趣影视"
@@ -153,20 +137,28 @@ class QuKanQuDuViewController: UIViewController {
             siteButtons.append(btn)
         }
         
+        let dimView = UIView()
+        dimView.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        dimView.translatesAutoresizingMaskIntoConstraints = false
+        dimView.tag = 999
+        let tapDim = UITapGestureRecognizer(target: self, action: #selector(toggleSidebar))
+        dimView.addGestureRecognizer(tapDim)
+        sidebarView.addSubview(dimView)
+        
         NSLayoutConstraint.activate([
             sidebarView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             sidebarView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             sidebarView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             sidebarWidthConstraint,
             
-            sideTitle.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 16),
+            sideTitle.topAnchor.constraint(equalTo: sidebarView.topAnchor, constant: 60),
             sideTitle.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor, constant: 16),
             sideTitle.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor, constant: -16),
             
-            hideButton.topAnchor.constraint(equalTo: sideTitle.bottomAnchor, constant: 4),
+            hideButton.centerYAnchor.constraint(equalTo: sideTitle.centerYAnchor),
             hideButton.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor, constant: -16),
             
-            scrollView.topAnchor.constraint(equalTo: hideButton.bottomAnchor, constant: 8),
+            scrollView.topAnchor.constraint(equalTo: sideTitle.bottomAnchor, constant: 16),
             scrollView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor),
@@ -175,7 +167,12 @@ class QuKanQuDuViewController: UIViewController {
             stackView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 12),
             stackView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -12),
             stackView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -20),
-            stackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -24)
+            stackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -24),
+            
+            dimView.leadingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
+            dimView.topAnchor.constraint(equalTo: sidebarView.topAnchor),
+            dimView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            dimView.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor)
         ])
     }
     
@@ -188,7 +185,9 @@ class QuKanQuDuViewController: UIViewController {
         }
         
         guard let url = URL(string: movieSites[index].url) else { return }
-        webView.load(URLRequest(url: url))
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+        webView.load(request)
     }
     
     @objc private func toggleSidebar() {
@@ -202,12 +201,8 @@ class QuKanQuDuViewController: UIViewController {
     
     @objc private func siteTapped(_ sender: UIButton) {
         loadSite(index: sender.tag)
-        if isSidebarCollapsed {
+        if !isSidebarCollapsed {
             toggleSidebar()
         }
-    }
-    
-    @objc private func goBack() {
-        navigationController?.popViewController(animated: true)
     }
 }
