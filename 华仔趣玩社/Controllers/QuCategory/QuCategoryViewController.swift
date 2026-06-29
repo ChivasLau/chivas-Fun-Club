@@ -3,7 +3,7 @@ import UIKit
 class QuCategoryViewController: UIViewController {
     
     private let categories: [(String, String, UIColor)] = [
-        ("趣看趣读", "视频 · 小说 · 短剧", UIColor(hex: "E74C3C")),
+        ("趣影视", "影视 · 追剧 · 搜索", UIColor(hex: "E74C3C")),
         ("趣玩", "游戏 · 画板 · 娱乐", UIColor(hex: "3498DB")),
         ("趣办", "AI工具 · 效率工具", UIColor(hex: "9B59B6")),
         ("趣家", "家庭 · 生活服务", UIColor(hex: "F39C12")),

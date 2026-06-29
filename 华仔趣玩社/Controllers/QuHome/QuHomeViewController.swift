@@ -222,7 +222,7 @@ class QuHomeViewController: UIViewController {
             contentStack.addArrangedSubview(section)
         }
         
-        let categories = ["趣看趣读", "趣玩", "趣办", "趣学"]
+        let categories = ["趣影视", "趣玩", "趣办", "趣学"]
         for category in categories {
             let categoryItems = UsageTracker.shared.getItemsByCategory(category, limit: 4)
             if !categoryItems.isEmpty {
@@ -243,7 +243,7 @@ class QuHomeViewController: UIViewController {
     
     private func getCategoryTitle(_ category: String) -> String {
         switch category {
-        case "趣看趣读": return "📺 趣看趣读"
+        case "趣影视": return "🎬 趣影视"
         case "趣玩": return "🎮 趣玩"
         case "趣办": return "🤖 趣办"
         case "趣学": return "📚 趣学"
@@ -384,7 +384,7 @@ class QuHomeViewController: UIViewController {
         container.addSubview(buttonStack)
         
         let quickItems: [(String, String, UIColor, String)] = [
-            ("📺 趣看趣读", "视频小说", UIColor(hex: "E74C3C"), "qukan"),
+            ("🎬 趣影视", "影视追剧", UIColor(hex: "E74C3C"), "quyingshi"),
             ("🎮 趣玩", "游戏画板", UIColor(hex: "A855F7"), "quwan"),
             ("🤖 趣办", "AI工具", UIColor(hex: "00D4AA"), "quban"),
             ("📚 趣学", "幼儿启蒙", UIColor(hex: "4ECDC4"), "qulearn")
@@ -465,7 +465,7 @@ class QuHomeViewController: UIViewController {
         }
         
         switch action {
-        case "qukan":
+        case "quyingshi":
             vc = QuKanQuDuViewController()
         case "quwan":
             vc = QuWanViewController()

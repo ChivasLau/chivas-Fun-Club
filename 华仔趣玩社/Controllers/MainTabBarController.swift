@@ -69,8 +69,8 @@ class MainTabBarController: UITabBarController {
     }
     
     private func setupViewControllers() {
-        let quHome = UINavigationController(rootViewController: QuHomeViewController())
-        quHome.tabBarItem = UITabBarItem(title: "趣首页", image: nil, tag: 0)
+        let quYingShi = UINavigationController(rootViewController: QuKanQuDuViewController())
+        quYingShi.tabBarItem = UITabBarItem(title: "趣影视", image: nil, tag: 0)
         
         let quCategory = UINavigationController(rootViewController: QuCategoryViewController())
         quCategory.tabBarItem = UITabBarItem(title: "趣分类", image: nil, tag: 1)
@@ -81,6 +81,6 @@ class MainTabBarController: UITabBarController {
         let quMe = UINavigationController(rootViewController: QuMeViewController())
         quMe.tabBarItem = UITabBarItem(title: "趣我", image: nil, tag: 3)
         
-        viewControllers = [quHome, quCategory, quAI, quMe]
+        viewControllers = [quYingShi, quCategory, quAI, quMe]
     }
 }
