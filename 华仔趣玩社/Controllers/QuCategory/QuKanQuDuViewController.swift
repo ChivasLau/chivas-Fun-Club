@@ -23,6 +23,7 @@ class QuKanQuDuViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        navigationController?.isNavigationBarHidden = true
         setupUI()
         loadSite(index: 0)
     }
@@ -34,17 +35,6 @@ class QuKanQuDuViewController: UIViewController {
         let gradientBg = GradientBackgroundView(frame: view.bounds)
         gradientBg.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(gradientBg)
-        
-        let topBar = UIView()
-        topBar.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(topBar)
-        
-        let titleLabel = UILabel()
-        titleLabel.text = "🎬 趣影视"
-        titleLabel.font = Theme.Font.bold(size: 22)
-        titleLabel.textColor = Theme.brightWhite
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        topBar.addSubview(titleLabel)
         
         let webConfig = WKWebViewConfiguration()
         webView = WKWebView(frame: .zero, configuration: webConfig)
@@ -66,32 +56,23 @@ class QuKanQuDuViewController: UIViewController {
         setupSidebar()
         
         NSLayoutConstraint.activate([
-            topBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            topBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            topBar.heightAnchor.constraint(equalToConstant: 44),
-            
-            titleLabel.centerXAnchor.constraint(equalTo: topBar.centerXAnchor),
-            titleLabel.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            
-            webView.topAnchor.constraint(equalTo: topBar.bottomAnchor),
+            webView.topAnchor.constraint(equalTo: view.topAnchor),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
-            toggleButton.topAnchor.constraint(equalTo: topBar.bottomAnchor, constant: 8),
+            toggleButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             toggleButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
             toggleButton.widthAnchor.constraint(equalToConstant: 44),
             toggleButton.heightAnchor.constraint(equalToConstant: 44)
         ])
-        
-        title = "趣影视"
     }
     
     private func setupSidebar() {
         sidebarView = UIView()
         sidebarView.backgroundColor = Theme.cardBackground.withAlphaComponent(0.95)
         sidebarView.translatesAutoresizingMaskIntoConstraints = false
+        sidebarView.clipsToBounds = true
         view.addSubview(sidebarView)
         
         sidebarWidthConstraint = sidebarView.widthAnchor.constraint(equalToConstant: 220)
@@ -146,7 +127,7 @@ class QuKanQuDuViewController: UIViewController {
         sidebarView.addSubview(dimView)
         
         NSLayoutConstraint.activate([
-            sidebarView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            sidebarView.topAnchor.constraint(equalTo: view.topAnchor),
             sidebarView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             sidebarView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             sidebarWidthConstraint,
