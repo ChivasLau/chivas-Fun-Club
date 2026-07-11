@@ -119,6 +119,7 @@ class QuSettingsViewController: UIViewController {
         ])
         
         let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tap.cancelsTouchesInView = false
         scrollView.addGestureRecognizer(tap)
     }
     
