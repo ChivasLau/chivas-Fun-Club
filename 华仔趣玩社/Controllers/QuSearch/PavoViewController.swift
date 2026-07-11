@@ -1590,7 +1590,7 @@ class PavoViewController: UIViewController {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let body: [String: Any] = [
-            "model": "agnes-chat-v1",
+            "model": "agnes-2.0-flash",
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": prompt]
@@ -1807,7 +1807,7 @@ class PavoViewController: UIViewController {
         req.httpMethod = "POST"
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: Any] = ["model": "agnes-image-2.0-flash", "prompt": prompt, "n": 1]
+        let body: [String: Any] = ["model": "agnes-image-2.0-flash", "prompt": prompt, "n": 1, "size": "1024x1024"]
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         URLSession.shared.dataTask(with: req) { data, _, _ in
@@ -1831,7 +1831,7 @@ class PavoViewController: UIViewController {
     }
 
     private func generateSingleVideo(prompt: String, completion: @escaping (URL?) -> Void) {
-        guard let url = URL(string: "\(baseURL)/video/generations") else { completion(nil); return }
+        guard let url = URL(string: "\(baseURL)/videos") else { completion(nil); return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -1851,7 +1851,7 @@ class PavoViewController: UIViewController {
     }
 
     private func pollSingleVideo(taskId: String, completion: @escaping (URL?) -> Void) {
-        guard let url = URL(string: "\(baseURL)/video/generations/\(taskId)") else { completion(nil); return }
+        guard let url = URL(string: "\(baseURL)/videos/\(taskId)") else { completion(nil); return }
         var req = URLRequest(url: url)
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
 
@@ -1864,7 +1864,7 @@ class PavoViewController: UIViewController {
                 }
                 let status = json["status"] as? String ?? ""
                 if status == "succeeded" || status == "completed" {
-                    if let output = json["output"] as? String, let videoUrl = URL(string: output) {
+                    if let output = json["url"] as? String, let videoUrl = URL(string: output) {
                         URLSession.shared.dataTask(with: videoUrl) { videoData, _, _ in
                             if let videoData = videoData {
                                 let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
@@ -1874,7 +1874,7 @@ class PavoViewController: UIViewController {
                                 completion(nil)
                             }
                         }.resume()
-                    } else if let outputArr = json["output"] as? [String], let firstUrl = outputArr.first, let videoUrl = URL(string: firstUrl) {
+                    } else if let outputArr = json["url"] as? [String], let firstUrl = outputArr.first, let videoUrl = URL(string: firstUrl) {
                         URLSession.shared.dataTask(with: videoUrl) { videoData, _, _ in
                             if let videoData = videoData {
                                 let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")

@@ -541,7 +541,7 @@ class QuAIViewController: UIViewController {
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let body: [String: Any] = [
-            "model": "agnes-chat-v1",
+            "model": "agnes-2.0-flash",
             "messages": [["role": "user", "content": prompt]],
             "max_tokens": 2048
         ]
@@ -572,9 +572,9 @@ class QuAIViewController: UIViewController {
         req.httpMethod = "POST"
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: Any] = ["model": currentImageModel, "prompt": prompt, "n": 1]
+let body: [String: Any] = ["model": currentImageModel, "prompt": prompt, "n": 1, "size": "1024x1024"]
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
+
         URLSession.shared.dataTask(with: req) { [weak self] data, _, error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -601,7 +601,7 @@ class QuAIViewController: UIViewController {
     }
     
     private func generateVideo(prompt: String, loadingId: String) {
-        guard let url = URL(string: "\(baseURL)/video/generations") else { return }
+        guard let url = URL(string: "\(baseURL)/videos") else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -625,7 +625,7 @@ class QuAIViewController: UIViewController {
     }
     
     private func pollVideoTask(taskId: String, loadingId: String) {
-        guard let url = URL(string: "\(baseURL)/video/generations/\(taskId)") else { return }
+        guard let url = URL(string: "\(baseURL)/videos/\(taskId)") else { return }
         var req = URLRequest(url: url)
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
@@ -638,9 +638,9 @@ class QuAIViewController: UIViewController {
                         self.updateMessage(id: loadingId, text: "⏳ 视频生成中... \(status)", isLoading: true)
                     }
                     if status == "succeeded" || status == "completed" {
-                        if let output = json["output"] as? String, let videoUrl = URL(string: output) {
+                        if let output = json["url"] as? String, let videoUrl = URL(string: output) {
                             self.downloadAndShowVideo(url: videoUrl, loadingId: loadingId)
-                        } else if let outputArr = json["output"] as? [String], let firstUrl = outputArr.first, let videoUrl = URL(string: firstUrl) {
+                        } else if let outputArr = json["url"] as? [String], let firstUrl = outputArr.first, let videoUrl = URL(string: firstUrl) {
                             self.downloadAndShowVideo(url: videoUrl, loadingId: loadingId)
                         } else {
                             DispatchQueue.main.async {
@@ -686,7 +686,7 @@ class QuAIViewController: UIViewController {
         req.httpMethod = "POST"
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: Any] = ["model": currentImageModel, "prompt": prompt, "n": 1]
+        let body: [String: Any] = ["model": currentImageModel, "prompt": prompt, "n": 1, "size": "1024x1024"]
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
@@ -717,7 +717,7 @@ class QuAIViewController: UIViewController {
     }
     
     private func generateVideoFromImage(prompt: String, loadingId: String) {
-        guard let url = URL(string: "\(baseURL)/video/generations") else { return }
+        guard let url = URL(string: "\(baseURL)/videos") else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -740,7 +740,7 @@ class QuAIViewController: UIViewController {
     }
     
     private func pollShortDramaVideo(taskId: String, loadingId: String) {
-        guard let url = URL(string: "\(baseURL)/video/generations/\(taskId)") else { return }
+        guard let url = URL(string: "\(baseURL)/videos/\(taskId)") else { return }
         var req = URLRequest(url: url)
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
@@ -750,9 +750,9 @@ class QuAIViewController: UIViewController {
                 if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     let status = json["status"] as? String ?? ""
                     if status == "succeeded" || status == "completed" {
-                        if let output = json["output"] as? String, let videoUrl = URL(string: output) {
+                        if let output = json["url"] as? String, let videoUrl = URL(string: output) {
                             self.downloadAndShowVideo(url: videoUrl, loadingId: loadingId)
-                        } else if let outputArr = json["output"] as? [String], let firstUrl = outputArr.first, let videoUrl = URL(string: firstUrl) {
+                        } else if let outputArr = json["url"] as? [String], let firstUrl = outputArr.first, let videoUrl = URL(string: firstUrl) {
                             self.downloadAndShowVideo(url: videoUrl, loadingId: loadingId)
                         } else {
                             DispatchQueue.main.async {
