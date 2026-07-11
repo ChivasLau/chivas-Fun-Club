@@ -1,6 +1,6 @@
 import UIKit
 
-class QuSettingsViewController: UIViewController {
+class QuSettingsViewController: UIViewController, UIGestureRecognizerDelegate {
     
     private let apiTextField = UITextField()
     
@@ -120,6 +120,7 @@ class QuSettingsViewController: UIViewController {
         
         let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         tap.cancelsTouchesInView = false
+        tap.delegate = self
         scrollView.addGestureRecognizer(tap)
     }
     
@@ -143,5 +144,10 @@ class QuSettingsViewController: UIViewController {
     
     @objc private func dismissKeyboard() {
         view.endEditing(true)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        if touch.view?.isDescendant(of: apiTextField) == true { return false }
+        return true
     }
 }
