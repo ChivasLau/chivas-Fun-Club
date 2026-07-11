@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 import AVKit
 
 class PavoViewController: UIViewController {
@@ -29,8 +30,9 @@ class PavoViewController: UIViewController {
     private var characterImages: [UIImage] = []
     private var keyframeImages: [UIImage] = []
     private var storyboardVideoURLs: [URL] = []
-    private var finalVideoURL: URL?
+    private var mergedVideoURL: URL?
     private var isGenerating = false
+    private var isMerging = false
 
     private var apiKey: String {
         UserDefaults.standard.string(forKey: "agnes_api_key") ?? ""
@@ -307,7 +309,7 @@ class PavoViewController: UIViewController {
             actionTitle = "🔄 重新生成"
             actionColor = Theme.mutedGray
         case .finalVideo:
-            showAction = true
+            showAction = mergedVideoURL != nil && !isMerging
             actionTitle = "💾 保存成片"
             actionColor = Theme.neonPink
         }
@@ -1245,39 +1247,120 @@ class PavoViewController: UIViewController {
 
     // MARK: Step 8 - 成片
     private func buildFinalVideoStep() {
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        stepContainer.addSubview(scrollView)
+
         let contentView = UIView()
         contentView.translatesAutoresizingMaskIntoConstraints = false
-        stepContainer.addSubview(contentView)
+        scrollView.addSubview(contentView)
 
         NSLayoutConstraint.activate([
-            contentView.topAnchor.constraint(equalTo: stepContainer.topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: stepContainer.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: stepContainer.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: stepContainer.bottomAnchor),
+            scrollView.topAnchor.constraint(equalTo: stepContainer.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: stepContainer.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: stepContainer.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: stepContainer.bottomAnchor),
+            contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
         ])
 
         let iconLabel = UILabel()
         iconLabel.text = "🎞️"
-        iconLabel.font = .systemFont(ofSize: 60)
+        iconLabel.font = .systemFont(ofSize: 50)
         iconLabel.textAlignment = .center
         iconLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(iconLabel)
 
         let titleLabel = UILabel()
         titleLabel.text = "🎉 成片完成！"
-        titleLabel.font = Theme.Font.bold(size: 28)
+        titleLabel.font = Theme.Font.bold(size: 26)
         titleLabel.textColor = Theme.brightWhite
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(titleLabel)
 
+        if isMerging {
+            let spinner = UIActivityIndicatorView(style: .large)
+            spinner.color = Theme.neonPink
+            spinner.startAnimating()
+            spinner.translatesAutoresizingMaskIntoConstraints = false
+            contentView.addSubview(spinner)
+
+            let mergeLabel = UILabel()
+            mergeLabel.text = "⏳ 正在合成最终成片...\n正在将 \(storyboardVideoURLs.count) 个视频片段合并为完整影片"
+            mergeLabel.font = Theme.Font.regular(size: 14)
+            mergeLabel.textColor = Theme.mutedGray
+            mergeLabel.textAlignment = .center
+            mergeLabel.numberOfLines = 0
+            mergeLabel.translatesAutoresizingMaskIntoConstraints = false
+            contentView.addSubview(mergeLabel)
+
+            NSLayoutConstraint.activate([
+                iconLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 40),
+                iconLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+                titleLabel.topAnchor.constraint(equalTo: iconLabel.bottomAnchor, constant: 8),
+                titleLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+                spinner.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 30),
+                spinner.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+                mergeLabel.topAnchor.constraint(equalTo: spinner.bottomAnchor, constant: 16),
+                mergeLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 40),
+                mergeLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -40),
+                mergeLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -60),
+            ])
+            return
+        }
+
         let descLabel = UILabel()
-        descLabel.text = "你的 Pavo 短剧已创作完成"
-        descLabel.font = Theme.Font.regular(size: 16)
+        descLabel.text = "\(storyboardVideoURLs.count) 个视频片段已合成为完整短片"
+        descLabel.font = Theme.Font.regular(size: 14)
         descLabel.textColor = Theme.mutedGray
         descLabel.textAlignment = .center
         descLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(descLabel)
+
+        if let videoURL = mergedVideoURL {
+            let playerContainer = UIView()
+            playerContainer.backgroundColor = UIColor.black
+            playerContainer.layer.cornerRadius = 16
+            playerContainer.clipsToBounds = true
+            playerContainer.translatesAutoresizingMaskIntoConstraints = false
+            contentView.addSubview(playerContainer)
+
+            let player = AVPlayer(url: videoURL)
+            let playerLayer = AVPlayerLayer(player: player)
+            playerLayer.frame = CGRect(x: 0, y: 0, width: 300, height: 200)
+            playerLayer.videoGravity = .resizeAspectFill
+            playerContainer.layer.addSublayer(playerLayer)
+
+            let playOverlay = UIButton()
+            playOverlay.setTitle("▶ 播放", for: .normal)
+            playOverlay.titleLabel?.font = Theme.Font.bold(size: 16)
+            playOverlay.setTitleColor(.white, for: .normal)
+            playOverlay.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+            playOverlay.layer.cornerRadius = 20
+            playOverlay.translatesAutoresizingMaskIntoConstraints = false
+            playOverlay.addTarget(self, action: #selector(didTapPlayMergedVideo), for: .touchUpInside)
+            playerContainer.addSubview(playOverlay)
+
+            NSLayoutConstraint.activate([
+                playerContainer.topAnchor.constraint(equalTo: descLabel.bottomAnchor, constant: 12),
+                playerContainer.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+                playerContainer.widthAnchor.constraint(equalToConstant: 320),
+                playerContainer.heightAnchor.constraint(equalToConstant: 200),
+
+                playOverlay.centerXAnchor.constraint(equalTo: playerContainer.centerXAnchor),
+                playOverlay.centerYAnchor.constraint(equalTo: playerContainer.centerYAnchor),
+                playOverlay.widthAnchor.constraint(equalToConstant: 100),
+                playOverlay.heightAnchor.constraint(equalToConstant: 44),
+            ])
+
+            DispatchQueue.main.async {
+                playerLayer.frame = playerContainer.bounds
+            }
+        }
 
         let summaryCard = UIView()
         summaryCard.backgroundColor = Theme.cardBackground.withAlphaComponent(0.5)
@@ -1297,7 +1380,8 @@ class PavoViewController: UIViewController {
             ("👥 角色", !charactersText.isEmpty && !characterImages.isEmpty),
             ("🎬 分镜", !storyboardText.isEmpty),
             ("🖼️ 关键帧", !keyframeImages.isEmpty),
-            ("📹 视频片段", !storyboardVideoURLs.isEmpty),
+            ("📹 \(storyboardVideoURLs.count) 个视频片段", true),
+            ("🎞️ 合成成片", mergedVideoURL != nil),
         ]
 
         for (label, done) in items {
@@ -1309,7 +1393,7 @@ class PavoViewController: UIViewController {
         }
 
         let successLabel = UILabel()
-        successLabel.text = "✨ 你的 AI 短剧作品已全部就绪！点击下方按钮保存到相册。"
+        successLabel.text = "✨ 你的 AI 短剧已合成为完整影片！"
         successLabel.font = Theme.Font.regular(size: 14)
         successLabel.textColor = Theme.mutedGray
         successLabel.textAlignment = .center
@@ -1318,13 +1402,13 @@ class PavoViewController: UIViewController {
         contentView.addSubview(successLabel)
 
         let saveBtn = UIButton()
-        saveBtn.setTitle("💾 保存全部到相册", for: .normal)
+        saveBtn.setTitle("💾 保存成片到相册", for: .normal)
         saveBtn.titleLabel?.font = Theme.Font.bold(size: 18)
         saveBtn.setTitleColor(.white, for: .normal)
         saveBtn.backgroundColor = Theme.neonPink
         saveBtn.layer.cornerRadius = 20
         saveBtn.translatesAutoresizingMaskIntoConstraints = false
-        saveBtn.addTarget(self, action: #selector(saveAllToAlbum), for: .touchUpInside)
+        saveBtn.addTarget(self, action: #selector(saveMergedVideo), for: .touchUpInside)
         contentView.addSubview(saveBtn)
 
         let backBtn = UIButton()
@@ -1337,15 +1421,24 @@ class PavoViewController: UIViewController {
         backBtn.addTarget(self, action: #selector(didTapClose), for: .touchUpInside)
         contentView.addSubview(backBtn)
 
+        var lastAnchor: NSLayoutYAxisAnchor = descLabel.bottomAnchor
+        var lastPadding: CGFloat = 12
+
+        if mergedVideoURL != nil {
+            lastAnchor = summaryCard.topAnchor
+            lastPadding = -16
+        }
+
         NSLayoutConstraint.activate([
-            iconLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            iconLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
             iconLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             titleLabel.topAnchor.constraint(equalTo: iconLabel.bottomAnchor, constant: 4),
             titleLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+
             descLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
             descLabel.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
 
-            summaryCard.topAnchor.constraint(equalTo: descLabel.bottomAnchor, constant: 20),
+            summaryCard.topAnchor.constraint(equalTo: lastAnchor, constant: lastPadding),
             summaryCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 40),
             summaryCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -40),
             summaryStack.topAnchor.constraint(equalTo: summaryCard.topAnchor, constant: 16),
@@ -1353,11 +1446,11 @@ class PavoViewController: UIViewController {
             summaryStack.trailingAnchor.constraint(equalTo: summaryCard.trailingAnchor, constant: -16),
             summaryStack.bottomAnchor.constraint(equalTo: summaryCard.bottomAnchor, constant: -16),
 
-            successLabel.topAnchor.constraint(equalTo: summaryCard.bottomAnchor, constant: 20),
+            successLabel.topAnchor.constraint(equalTo: summaryCard.bottomAnchor, constant: 16),
             successLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 40),
             successLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -40),
 
-            saveBtn.topAnchor.constraint(equalTo: successLabel.bottomAnchor, constant: 24),
+            saveBtn.topAnchor.constraint(equalTo: successLabel.bottomAnchor, constant: 16),
             saveBtn.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             saveBtn.widthAnchor.constraint(equalToConstant: 260),
             saveBtn.heightAnchor.constraint(equalToConstant: 50),
@@ -1390,6 +1483,14 @@ class PavoViewController: UIViewController {
                 return
             }
         }
+        if currentStep == .storyboardVideo {
+            guard !storyboardVideoURLs.isEmpty else {
+                showToast("请先生成视频片段")
+                return
+            }
+            startMergingVideos()
+            return
+        }
         guard let next = PavoStep(rawValue: currentStep.rawValue + 1) else { return }
         currentStep = next
     }
@@ -1402,8 +1503,80 @@ class PavoViewController: UIViewController {
         case .storyboard: generateStoryboard()
         case .keyframes: generateKeyframes()
         case .storyboardVideo: generateStoryboardVideos()
-        case .finalVideo: saveAllToAlbum()
+        case .finalVideo: saveMergedVideo()
         default: break
+        }
+    }
+
+    // MARK: - Video Merging
+
+    private func startMergingVideos() {
+        guard storyboardVideoURLs.count > 0 else { showToast("没有可合成的视频"); return }
+        if storyboardVideoURLs.count == 1 {
+            mergedVideoURL = storyboardVideoURLs[0]
+            advanceToStep8()
+            return
+        }
+        isMerging = true
+        advanceToStep8()
+        mergeStoryboardVideos { [weak self] url in
+            guard let self = self else { return }
+            self.isMerging = false
+            if let url = url {
+                self.mergedVideoURL = url
+                self.buildStepContent()
+                self.updateBottomBar()
+            } else {
+                self.showToast("❌ 视频合成失败，请重试")
+            }
+        }
+    }
+
+    private func advanceToStep8() {
+        guard let next = PavoStep(rawValue: PavoStep.storyboardVideo.rawValue + 1) else { return }
+        currentStep = next
+    }
+
+    private func mergeStoryboardVideos(completion: @escaping (URL?) -> Void) {
+        let urls = storyboardVideoURLs
+        guard urls.count > 1 else { completion(urls.first); return }
+
+        let composition = AVMutableComposition()
+        var currentTime = CMTime.zero
+
+        for url in urls {
+            let asset = AVURLAsset(url: url)
+            guard let track = asset.tracks(withMediaType: .video).first else { continue }
+            let timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+            do {
+                try composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)?
+                    .insertTimeRange(timeRange, of: track, at: currentTime)
+                if let audioTrack = asset.tracks(withMediaType: .audio).first,
+                   let compAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+                    try compAudioTrack.insertTimeRange(timeRange, of: audioTrack, at: currentTime)
+                }
+                currentTime = CMTimeAdd(currentTime, asset.duration)
+            } catch {
+                continue
+            }
+        }
+
+        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("pavo_final_\(UUID().uuidString).mp4")
+        guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+            completion(nil); return
+        }
+
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mp4
+        exportSession.shouldOptimizeForNetworkUse = true
+        exportSession.exportAsynchronously {
+            DispatchQueue.main.async {
+                switch exportSession.status {
+                case .completed: completion(outputURL)
+                case .cancelled, .failed: completion(nil)
+                default: completion(nil)
+                }
+            }
         }
     }
 
@@ -1767,22 +1940,21 @@ class PavoViewController: UIViewController {
         }
     }
 
-    @objc private func saveAllToAlbum() {
-        var saved = 0
-        let total = characterImages.count + keyframeImages.count + storyboardVideoURLs.count
-        guard total > 0 else { showToast("没有内容可保存"); return }
+    @objc private func saveMergedVideo() {
+        guard let videoURL = mergedVideoURL else { showToast("没有成片可保存"); return }
+        showToast("⏳ 正在保存成片到相册...")
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent("pavo_final_save.mp4")
+        try? FileManager.default.removeItem(at: temp)
+        try? FileManager.default.copyItem(at: videoURL, to: temp)
+        UISaveVideoAtPathToSavedPhotosAlbum(temp.path, self, #selector(videoSavedToAlbum(_:didFinishSavingWithError:contextInfo:)), nil)
+    }
 
-        for image in characterImages {
-            UIImageWriteToSavedPhotosAlbum(image, self, #selector(imageSavedInBatch(_:didFinishSavingWithError:contextInfo:)), nil)
-            saved += 1
-        }
-        for image in keyframeImages {
-            UIImageWriteToSavedPhotosAlbum(image, self, #selector(imageSavedInBatch(_:didFinishSavingWithError:contextInfo:)), nil)
-            saved += 1
-        }
-
-        if saved == total {
-            showToast("✅ 已全部保存到相册 (\(saved) 项)")
+    @objc private func didTapPlayMergedVideo() {
+        guard let videoURL = mergedVideoURL else { return }
+        let playerVC = AVPlayerViewController()
+        playerVC.player = AVPlayer(url: videoURL)
+        present(playerVC, animated: true) {
+            playerVC.player?.play()
         }
     }
 
@@ -1790,10 +1962,8 @@ class PavoViewController: UIViewController {
         showToast(error == nil ? "✅ 图片已保存到相册" : "❌ 保存失败")
     }
 
-    @objc private func imageSavedInBatch(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeMutableRawPointer) {
-    }
-
-    @objc private func videoSaved(_ video: String, didFinishSavingWithError error: Error?, contextInfo: UnsafeMutableRawPointer) {
+    @objc private func videoSavedToAlbum(_ video: String, didFinishSavingWithError error: Error?, contextInfo: UnsafeMutableRawPointer) {
+        showToast(error == nil ? "✅ 成片已保存到相册" : "❌ 保存失败")
     }
 
     // MARK: - Persistence
