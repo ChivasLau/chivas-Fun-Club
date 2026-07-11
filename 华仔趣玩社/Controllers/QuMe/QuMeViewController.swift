@@ -183,7 +183,10 @@ class QuMeViewController: UIViewController {
         case 2:
             showAlert(title: item.0, message: "使用历史功能开发中")
         case 3:
-            showAlert(title: item.0, message: "系统设置功能开发中")
+            let vc = QuSettingsViewController()
+            vc.hidesBottomBarWhenPushed = true
+            navigationController?.isNavigationBarHidden = false
+            navigationController?.pushViewController(vc, animated: true)
         case 4:
             showAlert(title: item.0, message: "当前已是最新版本 v1.0.0")
         case 5:
