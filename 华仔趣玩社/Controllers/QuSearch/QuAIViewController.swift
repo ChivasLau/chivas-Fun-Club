@@ -197,10 +197,9 @@ class QuAIViewController: UIViewController {
             
             bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
             bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
-
-            bottomBarBottomConstraint = bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
-            bottomBarBottomConstraint.isActive = true,
         ])
+        bottomBarBottomConstraint = bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8)
+        bottomBarBottomConstraint.isActive = true
     }
     
     private func setupBottomBar() {
