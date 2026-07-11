@@ -1,6 +1,7 @@
 import UIKit
 
 enum AIMode: String, CaseIterable {
+    case chat = "聊天"
     case shortDrama = "剧情短片"
     case imageGen = "图片生成"
     case videoGen = "视频生成"
@@ -19,6 +20,7 @@ class QuAIViewController: UIViewController {
     private var sidebarCollapsed = true
     private let sidebarWidth: CGFloat = 260
     private var sessionTable: UITableView!
+    private var dimView: UIView!
     
     // 主区域
     private let chatTable = UITableView()
@@ -29,6 +31,7 @@ class QuAIViewController: UIViewController {
     private let textField = UITextField()
     private let sendButton = UIButton()
     private let menuButton = UIButton()
+    private var bottomBarBottomConstraint: NSLayoutConstraint!
     
     private var currentMode: AIMode = .shortDrama
     private var currentImageModel = "agnes-image-2.0-flash"
@@ -56,6 +59,22 @@ class QuAIViewController: UIViewController {
         loadMessages(for: currentSession)
         setupUI()
         updateModeUI()
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow), name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide), name: UIResponder.keyboardWillHideNotification, object: nil)
+    }
+
+    @objc private func keyboardWillShow(_ n: Notification) {
+        guard let frame = (n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue,
+              let duration = (n.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue else { return }
+        let keyboardH = frame.height
+        bottomBarBottomConstraint.constant = -keyboardH - 8
+        UIView.animate(withDuration: duration) { self.view.layoutIfNeeded() }
+    }
+
+    @objc private func keyboardWillHide(_ n: Notification) {
+        let duration = (n.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        bottomBarBottomConstraint.constant = -8
+        UIView.animate(withDuration: duration) { self.view.layoutIfNeeded() }
     }
     
     override var prefersStatusBarHidden: Bool { true }
@@ -178,7 +197,9 @@ class QuAIViewController: UIViewController {
             
             bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
             bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
-            bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
+
+            bottomBarBottomConstraint = bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
+            bottomBarBottomConstraint.isActive = true,
         ])
     }
     
@@ -292,18 +313,24 @@ class QuAIViewController: UIViewController {
         sessionTable.translatesAutoresizingMaskIntoConstraints = false
         sidebarView.addSubview(sessionTable)
         
-        let dimView = UIView()
+        dimView = UIView()
         dimView.backgroundColor = UIColor.black.withAlphaComponent(0.4)
         dimView.translatesAutoresizingMaskIntoConstraints = false
+        dimView.isHidden = true
         let tap = UITapGestureRecognizer(target: self, action: #selector(toggleSidebar))
         dimView.addGestureRecognizer(tap)
-        sidebarView.addSubview(dimView)
+        view.addSubview(dimView)
         
         NSLayoutConstraint.activate([
             sidebarView.topAnchor.constraint(equalTo: view.topAnchor),
             sidebarView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             sidebarView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             sidebarWidthConstraint,
+            
+            dimView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            dimView.topAnchor.constraint(equalTo: view.topAnchor),
+            dimView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            dimView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
             headerLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
             headerLabel.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor, constant: 16),
@@ -318,11 +345,6 @@ class QuAIViewController: UIViewController {
             sessionTable.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
             sessionTable.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
             sessionTable.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor),
-            
-            dimView.leadingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
-            dimView.topAnchor.constraint(equalTo: sidebarView.topAnchor),
-            dimView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            dimView.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor),
         ])
     }
     
@@ -330,6 +352,7 @@ class QuAIViewController: UIViewController {
     
     @objc private func toggleSidebar() {
         sidebarCollapsed.toggle()
+        dimView.isHidden = sidebarCollapsed
         UIView.animate(withDuration: 0.3) {
             self.sidebarWidthConstraint.constant = self.sidebarCollapsed ? 0 : self.sidebarWidth
             self.view.layoutIfNeeded()
@@ -395,9 +418,12 @@ class QuAIViewController: UIViewController {
     }
     
     private func updateModeUI() {
-        if currentMode == .pavo {
+        switch currentMode {
+        case .chat:
+            textField.attributedPlaceholder = NSAttributedString(string: "输入聊天内容...", attributes: [.foregroundColor: Theme.mutedGray])
+        case .pavo:
             textField.attributedPlaceholder = NSAttributedString(string: "输入故事主题，开始 Pavo 创作...", attributes: [.foregroundColor: Theme.mutedGray])
-        } else {
+        default:
             textField.attributedPlaceholder = NSAttributedString(string: "输入你的想法...", attributes: [.foregroundColor: Theme.mutedGray])
         }
     }
@@ -405,6 +431,11 @@ class QuAIViewController: UIViewController {
     private func updateModelVisibility() {
         let dimColor = Theme.mutedGray
         switch currentMode {
+        case .chat:
+            videoModelButton.setTitleColor(dimColor, for: .normal)
+            videoModelButton.alpha = 0.4
+            imageModelButton.setTitleColor(dimColor, for: .normal)
+            imageModelButton.alpha = 0.4
         case .imageGen:
             videoModelButton.setTitleColor(dimColor, for: .normal)
             videoModelButton.alpha = 0.4
@@ -437,12 +468,21 @@ class QuAIViewController: UIViewController {
         let userMsg = ChatMessage(text: text, isUser: true)
         addMessage(userMsg)
         
-        let loadingMsg = ChatMessage(text: currentMode == .shortDrama ? "🎬 正在创作剧情短片..." : "🤔 正在思考...", isUser: false, isLoading: true)
+        let loadingText: String = {
+            switch currentMode {
+            case .chat: return "🤔 正在思考..."
+            case .shortDrama: return "🎬 正在创作剧情短片..."
+            default: return "🤔 正在思考..."
+            }
+        }()
+        let loadingMsg = ChatMessage(text: loadingText, isUser: false, isLoading: true)
         addMessage(loadingMsg)
         isGenerating = true
         scrollToBottom()
         
         switch currentMode {
+        case .chat:
+            generateChatResponse(prompt: text, loadingId: loadingMsg.id)
         case .imageGen:
             generateImage(prompt: text, loadingId: loadingMsg.id)
         case .videoGen:
@@ -494,7 +534,39 @@ class QuAIViewController: UIViewController {
     }
     
     // MARK: - API Calls
-    
+
+    private func generateChatResponse(prompt: String, loadingId: String) {
+        guard let url = URL(string: "\(baseURL)/chat/completions") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "model": "agnes-chat-v1",
+            "messages": [["role": "user", "content": prompt]],
+            "max_tokens": 2048
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isGenerating = false
+                if let data = data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let choices = json["choices"] as? [[String: Any]],
+                   let first = choices.first,
+                   let message = first["message"] as? [String: Any],
+                   let content = message["content"] as? String {
+                    self.updateMessage(id: loadingId, text: content, isLoading: false)
+                } else {
+                    let err = (data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] })?["error"] as? String ?? "请求失败"
+                    self.updateMessage(id: loadingId, text: "❌ \(err)", isLoading: false)
+                }
+            }
+        }.resume()
+    }
+
     private func generateImage(prompt: String, loadingId: String) {
         guard let url = URL(string: "\(baseURL)/images/generations") else { return }
         var req = URLRequest(url: url)
