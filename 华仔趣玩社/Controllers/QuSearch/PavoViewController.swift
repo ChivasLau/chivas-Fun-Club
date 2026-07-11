@@ -501,7 +501,7 @@ class PavoViewController: UIViewController {
         }
 
         if isGenerating {
-            let spinner = UIActivityIndicatorView(style: .large)
+            let spinner = UIActivityIndicatorView(style: .whiteLarge)
             spinner.color = Theme.electricBlue
             spinner.startAnimating()
             spinner.translatesAutoresizingMaskIntoConstraints = false
@@ -615,7 +615,7 @@ class PavoViewController: UIViewController {
         }
 
         if isGenerating {
-            let spinner = UIActivityIndicatorView(style: .large)
+            let spinner = UIActivityIndicatorView(style: .whiteLarge)
             spinner.color = Theme.electricBlue
             spinner.startAnimating()
             spinner.translatesAutoresizingMaskIntoConstraints = false
@@ -728,7 +728,7 @@ class PavoViewController: UIViewController {
         }
 
         if isGenerating {
-            let spinner = UIActivityIndicatorView(style: .large)
+            let spinner = UIActivityIndicatorView(style: .whiteLarge)
             spinner.color = Theme.electricBlue
             spinner.startAnimating()
             spinner.translatesAutoresizingMaskIntoConstraints = false
@@ -882,7 +882,7 @@ class PavoViewController: UIViewController {
         }
 
         if isGenerating {
-            let spinner = UIActivityIndicatorView(style: .large)
+            let spinner = UIActivityIndicatorView(style: .whiteLarge)
             spinner.color = Theme.electricBlue
             spinner.startAnimating()
             spinner.translatesAutoresizingMaskIntoConstraints = false
@@ -995,7 +995,7 @@ class PavoViewController: UIViewController {
         }
 
         if isGenerating {
-            let spinner = UIActivityIndicatorView(style: .large)
+            let spinner = UIActivityIndicatorView(style: .whiteLarge)
             spinner.color = Theme.electricBlue
             spinner.startAnimating()
             spinner.translatesAutoresizingMaskIntoConstraints = false
@@ -1149,7 +1149,7 @@ class PavoViewController: UIViewController {
         }
 
         if isGenerating {
-            let spinner = UIActivityIndicatorView(style: .large)
+            let spinner = UIActivityIndicatorView(style: .whiteLarge)
             spinner.color = Theme.electricBlue
             spinner.startAnimating()
             spinner.translatesAutoresizingMaskIntoConstraints = false
@@ -1180,7 +1180,7 @@ class PavoViewController: UIViewController {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(stackView)
 
-        for (i, videoURL) in storyboardVideoURLs.enumerated() {
+        for (i, _) in storyboardVideoURLs.enumerated() {
             let card = UIView()
             card.backgroundColor = Theme.cardBackground.withAlphaComponent(0.5)
             card.layer.cornerRadius = 16
@@ -1283,7 +1283,7 @@ class PavoViewController: UIViewController {
         contentView.addSubview(titleLabel)
 
         if isMerging {
-            let spinner = UIActivityIndicatorView(style: .large)
+            let spinner = UIActivityIndicatorView(style: .whiteLarge)
             spinner.color = Theme.neonPink
             spinner.startAnimating()
             spinner.translatesAutoresizingMaskIntoConstraints = false
@@ -1773,7 +1773,7 @@ class PavoViewController: UIViewController {
         let group = DispatchGroup()
         let queue = DispatchQueue(label: "video.gen")
 
-        for i in 0..<imageCount {
+        for _ in 0..<imageCount {
             group.enter()
             queue.async { [weak self] in
                 guard let self = self else { return }
@@ -1922,7 +1922,7 @@ class PavoViewController: UIViewController {
                 if let data = data, error == nil {
                     let temp = FileManager.default.temporaryDirectory.appendingPathComponent("temp_video.mp4")
                     try? data.write(to: temp)
-                    UISaveVideoAtPathToSavedPhotosAlbum(temp.path, self, #selector(self.videoSaved(_:didFinishSavingWithError:contextInfo:)), nil)
+                    UISaveVideoAtPathToSavedPhotosAlbum(temp.path, self, #selector(self.videoSavedToAlbum(_:didFinishSavingWithError:contextInfo:)), nil)
                 } else {
                     self.showToast("❌ 下载失败")
                 }

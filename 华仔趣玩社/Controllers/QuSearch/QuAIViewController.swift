@@ -514,7 +514,7 @@ class QuAIViewController: UIViewController {
                     URLSession.shared.dataTask(with: imgUrl) { imgData, _, _ in
                         DispatchQueue.main.async {
                             if let imgData = imgData, let image = UIImage(data: imgData) {
-                                let path = ChatSession.saveImage(image, sessionId: self.currentSession.id, messageId: loadingId)
+                                let _ = ChatSession.saveImage(image, sessionId: self.currentSession.id, messageId: loadingId)
                                 self.updateMessage(id: loadingId, image: image, text: "✅ 图片生成完成", isLoading: false)
                             } else {
                                 self.updateMessage(id: loadingId, text: "❌ 图片下载失败", isLoading: false)
@@ -730,12 +730,8 @@ class QuAIViewController: UIViewController {
     }
     
     @objc private func saveImage(_ sender: UIButton) {
-        guard let image = sender.titleLabel?.text.flatMap({ _ in
-            // find the message with this tag
-            let tag = sender.tag
-            guard tag < currentMessages.count else { return nil }
-            return currentMessages[tag].image
-        }) else { return }
+        let tag = sender.tag
+        guard tag < currentMessages.count, let image = currentMessages[tag].image else { return }
         UIImageWriteToSavedPhotosAlbum(image, self, #selector(imageSaved(_:didFinishSavingWithError:contextInfo:)), nil)
     }
     
@@ -1031,7 +1027,7 @@ class ChatMessageCell: UITableViewCell {
             saveImageButton.isHidden = true
         }
         
-        if let urlStr = msg.videoURL, let url = URL(string: urlStr.absoluteString) ?? (msg.videoURL).flatMap({ URL(string: $0) }) {
+        if let url = msg.videoURL {
             videoURL = url
             videoButton.isHidden = false
         } else {
