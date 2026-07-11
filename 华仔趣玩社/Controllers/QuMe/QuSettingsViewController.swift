@@ -122,7 +122,14 @@ class QuSettingsViewController: UIViewController {
     }
     
     private func loadSavedKey() {
-        apiTextField.text = UserDefaults.standard.string(forKey: "agnes_api_key") ?? ""
+        let saved = UserDefaults.standard.string(forKey: "agnes_api_key") ?? ""
+        if saved.isEmpty {
+            let defaultKey = "sk-C7SNm9gXYgUUxA6jlgB2iIve2lMbdeopLu4cQz56685iA8eX"
+            apiTextField.text = defaultKey
+            UserDefaults.standard.set(defaultKey, forKey: "agnes_api_key")
+        } else {
+            apiTextField.text = saved
+        }
     }
     
     @objc private func saveKey() {

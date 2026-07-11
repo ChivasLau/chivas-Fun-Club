@@ -10,6 +10,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         UIApplication.shared.isIdleTimerDisabled = true
         
+        if UserDefaults.standard.string(forKey: "agnes_api_key")?.isEmpty ?? true {
+            UserDefaults.standard.set("sk-C7SNm9gXYgUUxA6jlgB2iIve2lMbdeopLu4cQz56685iA8eX", forKey: "agnes_api_key")
+        }
+        
         window = UIWindow(frame: UIScreen.main.bounds)
         
         let tabBarController = MainTabBarController()
