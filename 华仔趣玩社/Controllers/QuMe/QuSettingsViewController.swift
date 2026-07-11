@@ -1,6 +1,6 @@
 import UIKit
 
-class QuSettingsViewController: UIViewController, UIGestureRecognizerDelegate {
+class QuSettingsViewController: UIViewController {
     
     private let apiTextField = UITextField()
     
@@ -118,10 +118,7 @@ class QuSettingsViewController: UIViewController, UIGestureRecognizerDelegate {
             saveButton.bottomAnchor.constraint(equalTo: apiCard.bottomAnchor, constant: -20),
         ])
         
-        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
-        tap.cancelsTouchesInView = false
-        tap.delegate = self
-        scrollView.addGestureRecognizer(tap)
+        scrollView.keyboardDismissMode = .onDrag
     }
     
     private func loadSavedKey() {
@@ -144,10 +141,5 @@ class QuSettingsViewController: UIViewController, UIGestureRecognizerDelegate {
     
     @objc private func dismissKeyboard() {
         view.endEditing(true)
-    }
-
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        if touch.view?.isDescendant(of: apiTextField) == true { return false }
-        return true
     }
 }
