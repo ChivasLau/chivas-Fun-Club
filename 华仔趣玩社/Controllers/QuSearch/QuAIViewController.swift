@@ -4,38 +4,31 @@ enum AIMode: String, CaseIterable {
     case shortDrama = "剧情短片"
     case imageGen = "图片生成"
     case videoGen = "视频生成"
-}
-
-struct ChatMessage {
-    let id: String
-    let text: String
-    let isUser: Bool
-    var image: UIImage?
-    var videoURL: String?
-    let isLoading: Bool
-    let timestamp: Date
-    
-    init(id: String = UUID().uuidString, text: String, isUser: Bool, image: UIImage? = nil, videoURL: String? = nil, isLoading: Bool = false, timestamp: Date = Date()) {
-        self.id = id
-        self.text = text
-        self.isUser = isUser
-        self.image = image
-        self.videoURL = videoURL
-        self.isLoading = isLoading
-        self.timestamp = timestamp
-    }
+    case pavo = "Pavo 剧情工厂"
 }
 
 class QuAIViewController: UIViewController {
+
+    private var sessions: [ChatSession] = []
+    private var currentSession: ChatSession!
+    private var currentMessages: [ChatMessage] = []
     
-    private var messages: [ChatMessage] = []
-    private let tableView = UITableView()
+    // 侧栏
+    private var sidebarView: UIView!
+    private var sidebarWidthConstraint: NSLayoutConstraint!
+    private var sidebarCollapsed = true
+    private let sidebarWidth: CGFloat = 260
+    private var sessionTable: UITableView!
+    
+    // 主区域
+    private let chatTable = UITableView()
     private let bottomBar = UIView()
     private let modeButton = UIButton()
     private let imageModelButton = UIButton()
     private let videoModelButton = UIButton()
     private let textField = UITextField()
     private let sendButton = UIButton()
+    private let menuButton = UIButton()
     
     private var currentMode: AIMode = .shortDrama
     private var currentImageModel = "agnes-image-2.0-flash"
@@ -43,18 +36,26 @@ class QuAIViewController: UIViewController {
     
     private let imageModels = ["agnes-image-2.0-flash", "agnes-image-2.1-flash"]
     private let videoModels = ["agnes-video-v2.0"]
-    
     private var isGenerating = false
     
     private var apiKey: String {
         UserDefaults.standard.string(forKey: "agnes_api_key") ?? ""
     }
-    
     private let baseURL = "https://apihub.agnes-ai.com/v1"
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        sessions = ChatSession.loadAll()
+        if sessions.isEmpty {
+            currentSession = ChatSession.create(title: "新对话")
+            sessions.append(currentSession)
+            currentSession.save()
+        } else {
+            currentSession = sessions.first!
+        }
+        loadMessages(for: currentSession)
         setupUI()
+        updateModeUI()
     }
     
     override var prefersStatusBarHidden: Bool { true }
@@ -64,11 +65,66 @@ class QuAIViewController: UIViewController {
         navigationController?.isNavigationBarHidden = true
     }
     
+    // MARK: - Session Message Loading
+    
+    private func loadMessages(for session: ChatSession) {
+        currentMessages = session.messages.map { cm in
+            let image = cm.imagePath.flatMap { ChatSession.loadImage(path: $0) }
+            return ChatMessage(id: cm.id, text: cm.text, isUser: cm.isUser, image: image, videoURL: cm.videoURL.flatMap { URL(string: $0) }, isLoading: false, timestamp: cm.timestamp)
+        }
+    }
+    
+    private func saveCurrentSession() {
+        let codableMessages = currentMessages.map { msg in
+            CodableMessage(id: msg.id, text: msg.text, isUser: msg.isUser, imagePath: nil, videoURL: msg.videoURL?.absoluteString, isLoading: false, timestamp: msg.timestamp)
+        }
+        currentSession.messages = codableMessages
+        currentSession.updatedAt = Date()
+        currentSession.save()
+    }
+    
+    private func switchSession(_ session: ChatSession) {
+        saveCurrentSession()
+        currentSession = session
+        loadMessages(for: session)
+        chatTable.reloadData()
+        scrollToBottom()
+        toggleSidebar()
+    }
+    
+    private func newSession() {
+        saveCurrentSession()
+        let session = ChatSession.create(title: "新对话")
+        sessions.insert(session, at: 0)
+        currentSession = session
+        currentMessages = []
+        session.save()
+        chatTable.reloadData()
+        sessionTable.reloadData()
+        toggleSidebar()
+    }
+    
+    private func deleteSession(at index: Int) {
+        guard sessions.count > 1 else { return }
+        let session = sessions[index]
+        session.delete()
+        sessions.remove(at: index)
+        if session.id == currentSession.id {
+            currentSession = sessions.first!
+            loadMessages(for: currentSession)
+            chatTable.reloadData()
+        }
+        sessionTable.reloadData()
+    }
+    
+    // MARK: - Setup UI
+    
     private func setupUI() {
         let gradientBg = GradientBackgroundView(frame: view.bounds)
         gradientBg.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(gradientBg)
         
+        // 标题
         let titleLabel = UILabel()
         titleLabel.text = "🤖 趣AI"
         titleLabel.font = Theme.Font.bold(size: 28)
@@ -77,37 +133,53 @@ class QuAIViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
         
-        tableView.backgroundColor = .clear
-        tableView.separatorStyle = .none
-        tableView.dataSource = self
-        tableView.delegate = self
-        tableView.register(ChatMessageCell.self, forCellReuseIdentifier: "ChatCell")
-        tableView.keyboardDismissMode = .interactive
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(tableView)
+        // 菜单按钮
+        menuButton.setTitle("☰", for: .normal)
+        menuButton.titleLabel?.font = Theme.Font.bold(size: 24)
+        menuButton.setTitleColor(Theme.electricBlue, for: .normal)
+        menuButton.backgroundColor = Theme.cardBackground.withAlphaComponent(0.6)
+        menuButton.layer.cornerRadius = 20
+        menuButton.translatesAutoresizingMaskIntoConstraints = false
+        menuButton.addTarget(self, action: #selector(toggleSidebar), for: .touchUpInside)
+        view.addSubview(menuButton)
         
+        // 聊天列表
+        chatTable.backgroundColor = .clear
+        chatTable.separatorStyle = .none
+        chatTable.dataSource = self
+        chatTable.delegate = self
+        chatTable.register(ChatMessageCell.self, forCellReuseIdentifier: "ChatCell")
+        chatTable.keyboardDismissMode = .interactive
+        chatTable.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(chatTable)
+        
+        // 底部栏
         bottomBar.backgroundColor = Theme.cardBackground.withAlphaComponent(0.92)
         bottomBar.layer.cornerRadius = 16
         bottomBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(bottomBar)
         
         setupBottomBar()
+        setupSidebar()
         
         NSLayoutConstraint.activate([
+            menuButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
+            menuButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+            menuButton.widthAnchor.constraint(equalToConstant: 40),
+            menuButton.heightAnchor.constraint(equalToConstant: 40),
+            
             titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
-            tableView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -8),
+            chatTable.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            chatTable.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            chatTable.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            chatTable.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -8),
             
             bottomBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
             bottomBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
             bottomBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
         ])
-        
-        addMessage(ChatMessage(text: "你好！选择模式输入想法，我来帮你创作 🚀", isUser: false))
     }
     
     private func setupBottomBar() {
@@ -185,6 +257,89 @@ class QuAIViewController: UIViewController {
         ])
     }
     
+    private func setupSidebar() {
+        sidebarView = UIView()
+        sidebarView.backgroundColor = Theme.cardBackground.withAlphaComponent(0.95)
+        sidebarView.translatesAutoresizingMaskIntoConstraints = false
+        sidebarView.clipsToBounds = true
+        view.addSubview(sidebarView)
+        
+        sidebarWidthConstraint = sidebarView.widthAnchor.constraint(equalToConstant: 0)
+        
+        let headerLabel = UILabel()
+        headerLabel.text = "💬 对话历史"
+        headerLabel.font = Theme.Font.bold(size: 18)
+        headerLabel.textColor = Theme.brightWhite
+        headerLabel.translatesAutoresizingMaskIntoConstraints = false
+        sidebarView.addSubview(headerLabel)
+        
+        let newButton = UIButton(type: .system)
+        newButton.setTitle("✏️ 新建对话", for: .normal)
+        newButton.titleLabel?.font = Theme.Font.bold(size: 14)
+        newButton.setTitleColor(Theme.electricBlue, for: .normal)
+        newButton.backgroundColor = Theme.cardBackground.withAlphaComponent(0.5)
+        newButton.layer.cornerRadius = 12
+        newButton.translatesAutoresizingMaskIntoConstraints = false
+        newButton.addTarget(self, action: #selector(didTapNewSession), for: .touchUpInside)
+        sidebarView.addSubview(newButton)
+        
+        sessionTable = UITableView()
+        sessionTable.backgroundColor = .clear
+        sessionTable.separatorStyle = .none
+        sessionTable.dataSource = self
+        sessionTable.delegate = self
+        sessionTable.register(SessionCell.self, forCellReuseIdentifier: "SessionCell")
+        sessionTable.translatesAutoresizingMaskIntoConstraints = false
+        sidebarView.addSubview(sessionTable)
+        
+        let dimView = UIView()
+        dimView.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        dimView.translatesAutoresizingMaskIntoConstraints = false
+        let tap = UITapGestureRecognizer(target: self, action: #selector(toggleSidebar))
+        dimView.addGestureRecognizer(tap)
+        sidebarView.addSubview(dimView)
+        
+        NSLayoutConstraint.activate([
+            sidebarView.topAnchor.constraint(equalTo: view.topAnchor),
+            sidebarView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            sidebarView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            sidebarWidthConstraint,
+            
+            headerLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            headerLabel.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor, constant: 16),
+            headerLabel.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor, constant: -16),
+            
+            newButton.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 12),
+            newButton.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor, constant: 16),
+            newButton.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor, constant: -16),
+            newButton.heightAnchor.constraint(equalToConstant: 40),
+            
+            sessionTable.topAnchor.constraint(equalTo: newButton.bottomAnchor, constant: 12),
+            sessionTable.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
+            sessionTable.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
+            sessionTable.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor),
+            
+            dimView.leadingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
+            dimView.topAnchor.constraint(equalTo: sidebarView.topAnchor),
+            dimView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            dimView.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor),
+        ])
+    }
+    
+    // MARK: - Sidebar
+    
+    @objc private func toggleSidebar() {
+        sidebarCollapsed.toggle()
+        UIView.animate(withDuration: 0.3) {
+            self.sidebarWidthConstraint.constant = self.sidebarCollapsed ? 0 : self.sidebarWidth
+            self.view.layoutIfNeeded()
+        }
+    }
+    
+    @objc private func didTapNewSession() {
+        newSession()
+    }
+    
     // MARK: - Mode / Model Pickers
     
     @objc private func showModePicker() {
@@ -194,6 +349,7 @@ class QuAIViewController: UIViewController {
                 self?.currentMode = mode
                 self?.modeButton.setTitle("▼ \(mode.rawValue)", for: .normal)
                 self?.updateModelVisibility()
+                self?.updateModeUI()
             }))
         }
         alert.addAction(UIAlertAction(title: "取消", style: .cancel))
@@ -238,6 +394,14 @@ class QuAIViewController: UIViewController {
         present(alert, animated: true)
     }
     
+    private func updateModeUI() {
+        if currentMode == .pavo {
+            textField.attributedPlaceholder = NSAttributedString(string: "输入故事主题，开始 Pavo 创作...", attributes: [.foregroundColor: Theme.mutedGray])
+        } else {
+            textField.attributedPlaceholder = NSAttributedString(string: "输入你的想法...", attributes: [.foregroundColor: Theme.mutedGray])
+        }
+    }
+
     private func updateModelVisibility() {
         let dimColor = Theme.mutedGray
         switch currentMode {
@@ -251,6 +415,11 @@ class QuAIViewController: UIViewController {
             videoModelButton.alpha = 1.0
             imageModelButton.setTitleColor(Theme.brightWhite, for: .normal)
             imageModelButton.alpha = 1.0
+        case .pavo:
+            videoModelButton.setTitleColor(dimColor, for: .normal)
+            videoModelButton.alpha = 0.4
+            imageModelButton.setTitleColor(dimColor, for: .normal)
+            imageModelButton.alpha = 0.4
         }
     }
     
@@ -280,35 +449,48 @@ class QuAIViewController: UIViewController {
             generateVideo(prompt: text, loadingId: loadingMsg.id)
         case .shortDrama:
             generateShortDrama(prompt: text, loadingId: loadingMsg.id)
+        case .pavo:
+            currentMessages.removeLast()
+            currentMessages.removeLast()
+            chatTable.reloadData()
+            isGenerating = false
+            let project = PavoProject.create(title: String(text.prefix(30)))
+            var updated = project
+            updated.requirements = text
+            let pavoVC = PavoViewController(project: updated)
+            pavoVC.modalPresentationStyle = .fullScreen
+            present(pavoVC, animated: true)
         }
     }
     
     private func addMessage(_ msg: ChatMessage) {
-        messages.append(msg)
-        tableView.reloadData()
+        currentMessages.append(msg)
+        chatTable.reloadData()
         scrollToBottom()
+        saveCurrentSession()
     }
     
-    private func updateMessage(id: String, image: UIImage? = nil, videoURL: String? = nil, text: String? = nil, isLoading: Bool = false) {
-        if let idx = messages.firstIndex(where: { $0.id == id }) {
-            var msg = messages[idx]
+    private func updateMessage(id: String, image: UIImage? = nil, videoURL: URL? = nil, text: String? = nil, isLoading: Bool = false) {
+        if let idx = currentMessages.firstIndex(where: { $0.id == id }) {
+            var msg = currentMessages[idx]
             if let img = image { msg.image = img }
             if let url = videoURL { msg.videoURL = url }
-            if let t = text { 
-                var newMsg = ChatMessage(id: msg.id, text: t, isUser: msg.isUser, image: msg.image, videoURL: msg.videoURL, isLoading: isLoading, timestamp: msg.timestamp)
-                messages[idx] = newMsg
+            if let t = text {
+                let newMsg = ChatMessage(id: msg.id, text: t, isUser: msg.isUser, image: msg.image, videoURL: msg.videoURL, isLoading: isLoading, timestamp: msg.timestamp)
+                currentMessages[idx] = newMsg
             } else {
-                messages[idx] = msg
+                currentMessages[idx] = msg
             }
-            tableView.reloadData()
+            chatTable.reloadData()
             scrollToBottom()
+            saveCurrentSession()
         }
     }
     
     private func scrollToBottom() {
-        guard !messages.isEmpty else { return }
-        let idx = IndexPath(row: messages.count - 1, section: 0)
-        tableView.scrollToRow(at: idx, at: .bottom, animated: true)
+        guard !currentMessages.isEmpty else { return }
+        let idx = IndexPath(row: currentMessages.count - 1, section: 0)
+        chatTable.scrollToRow(at: idx, at: .bottom, animated: true)
     }
     
     // MARK: - API Calls
@@ -332,6 +514,7 @@ class QuAIViewController: UIViewController {
                     URLSession.shared.dataTask(with: imgUrl) { imgData, _, _ in
                         DispatchQueue.main.async {
                             if let imgData = imgData, let image = UIImage(data: imgData) {
+                                let path = ChatSession.saveImage(image, sessionId: self.currentSession.id, messageId: loadingId)
                                 self.updateMessage(id: loadingId, image: image, text: "✅ 图片生成完成", isLoading: false)
                             } else {
                                 self.updateMessage(id: loadingId, text: "❌ 图片下载失败", isLoading: false)
@@ -418,7 +601,7 @@ class QuAIViewController: UIViewController {
                 if let data = data {
                     let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
                     try? data.write(to: tempURL)
-                    self.updateMessage(id: loadingId, videoURL: tempURL.absoluteString, text: "✅ 视频生成完成", isLoading: false)
+                    self.updateMessage(id: loadingId, videoURL: tempURL, text: "✅ 视频生成完成", isLoading: false)
                 } else {
                     self.updateMessage(id: loadingId, text: "✅ 视频已生成（下载失败）\n\(url.absoluteString)", isLoading: false)
                 }
@@ -444,6 +627,7 @@ class QuAIViewController: UIViewController {
                     URLSession.shared.dataTask(with: imgUrl) { imgData, _, _ in
                         DispatchQueue.main.async {
                             if let imgData = imgData, let image = UIImage(data: imgData) {
+                                let _ = ChatSession.saveImage(image, sessionId: self.currentSession.id, messageId: loadingId)
                                 self.updateMessage(id: loadingId, image: image, text: "🎬 剧情画面已生成，正在生成视频...", isLoading: true)
                                 self.generateVideoFromImage(prompt: prompt, loadingId: loadingId)
                             } else {
@@ -511,9 +695,6 @@ class QuAIViewController: UIViewController {
                             self.updateMessage(id: loadingId, text: "🎬 画面已生成（视频生成失败）", isLoading: false)
                         }
                     } else {
-                        DispatchQueue.main.async {
-                            self.updateMessage(id: loadingId, text: "🎬 视频创作中...", isLoading: true)
-                        }
                         DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) { poll() }
                     }
                 } else {
@@ -548,20 +729,18 @@ class QuAIViewController: UIViewController {
         }
     }
     
-    @objc private func saveVideo(_ sender: UIButton) {
-        guard let urlStr = sender.titleLabel?.text, let url = URL(string: urlStr) else { return }
-        showToast("⏳ 正在下载视频...")
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            DispatchQueue.main.async {
-                if let data = data, error == nil {
-                    let temp = FileManager.default.temporaryDirectory.appendingPathComponent("temp_video.mp4")
-                    try? data.write(to: temp)
-                    UISaveVideoAtPathToSavedPhotosAlbum(temp.path, self, #selector(self.videoSaved(_:didFinishSavingWithError:contextInfo:)), nil)
-                } else {
-                    self.showToast("❌ 下载失败")
-                }
-            }
-        }.resume()
+    @objc private func saveImage(_ sender: UIButton) {
+        guard let image = sender.titleLabel?.text.flatMap({ _ in
+            // find the message with this tag
+            let tag = sender.tag
+            guard tag < currentMessages.count else { return nil }
+            return currentMessages[tag].image
+        }) else { return }
+        UIImageWriteToSavedPhotosAlbum(image, self, #selector(imageSaved(_:didFinishSavingWithError:contextInfo:)), nil)
+    }
+    
+    @objc private func imageSaved(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeMutableRawPointer) {
+        showToast(error == nil ? "✅ 图片已保存到相册" : "❌ 保存失败")
     }
     
     @objc private func videoSaved(_ video: String, didFinishSavingWithError error: Error?, contextInfo: UnsafeMutableRawPointer) {
@@ -569,17 +748,31 @@ class QuAIViewController: UIViewController {
     }
 }
 
-// MARK: - TableView
+// MARK: - TableView (Chat + Session)
 
 extension QuAIViewController: UITableViewDataSource, UITableViewDelegate {
+    
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return messages.count
+        if tableView == sessionTable { return sessions.count }
+        return currentMessages.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        if tableView == sessionTable {
+            let cell = tableView.dequeueReusableCell(withIdentifier: "SessionCell", for: indexPath) as! SessionCell
+            let session = sessions[indexPath.row]
+            let isActive = session.id == currentSession.id
+            cell.configure(title: session.title, subtitle: timeAgo(session.updatedAt), isActive: isActive)
+            return cell
+        }
+        
         let cell = tableView.dequeueReusableCell(withIdentifier: "ChatCell", for: indexPath) as! ChatMessageCell
-        let msg = messages[indexPath.row]
-        cell.configure(with: msg, apiKeyMissing: apiKey.isEmpty)
+        let msg = currentMessages[indexPath.row]
+        cell.configure(with: msg, apiKeyMissing: apiKey.isEmpty, index: indexPath.row)
+        cell.onSaveImage = { [weak self] idx in
+            guard let self = self, idx < self.currentMessages.count, let image = self.currentMessages[idx].image else { return }
+            UIImageWriteToSavedPhotosAlbum(image, self, #selector(self.imageSaved(_:didFinishSavingWithError:contextInfo:)), nil)
+        }
         cell.onSaveVideo = { [weak self] url in
             guard let self = self else { return }
             self.showToast("⏳ 正在下载视频...")
@@ -597,6 +790,39 @@ extension QuAIViewController: UITableViewDataSource, UITableViewDelegate {
         }
         return cell
     }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if tableView == sessionTable {
+            switchSession(sessions[indexPath.row])
+        }
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        if tableView == sessionTable { return 60 }
+        return UITableView.automaticDimension
+    }
+    
+    func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
+        100
+    }
+    
+    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        tableView == sessionTable && sessions.count > 1
+    }
+    
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if tableView == sessionTable && editingStyle == .delete {
+            deleteSession(at: indexPath.row)
+        }
+    }
+    
+    private func timeAgo(_ date: Date) -> String {
+        let secs = Int(-date.timeIntervalSinceNow)
+        if secs < 60 { return "刚刚" }
+        if secs < 3600 { return "\(secs/60)分钟前" }
+        if secs < 86400 { return "\(secs/3600)小时前" }
+        return "\(secs/86400)天前"
+    }
 }
 
 // MARK: - TextField Delegate
@@ -608,19 +834,75 @@ extension QuAIViewController: UITextFieldDelegate {
     }
 }
 
-// MARK: - Chat Cell
+// MARK: - Session Cell
+
+class SessionCell: UITableViewCell {
+    private let titleLabel = UILabel()
+    private let subtitleLabel = UILabel()
+    private let indicator = UIView()
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        backgroundColor = .clear
+        selectionStyle = .none
+        
+        indicator.backgroundColor = Theme.electricBlue
+        indicator.layer.cornerRadius = 3
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(indicator)
+        
+        titleLabel.font = Theme.Font.bold(size: 14)
+        titleLabel.textColor = Theme.brightWhite
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(titleLabel)
+        
+        subtitleLabel.font = Theme.Font.regular(size: 11)
+        subtitleLabel.textColor = Theme.mutedGray
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(subtitleLabel)
+        
+        NSLayoutConstraint.activate([
+            indicator.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
+            indicator.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            indicator.widthAnchor.constraint(equalToConstant: 6),
+            indicator.heightAnchor.constraint(equalToConstant: 6),
+            
+            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+            titleLabel.leadingAnchor.constraint(equalTo: indicator.trailingAnchor, constant: 8),
+            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
+            subtitleLabel.leadingAnchor.constraint(equalTo: indicator.trailingAnchor, constant: 8),
+            subtitleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+        ])
+    }
+    
+    required init?(coder: NSCoder) { fatalError() }
+    
+    func configure(title: String, subtitle: String, isActive: Bool) {
+        titleLabel.text = title
+        subtitleLabel.text = subtitle
+        indicator.isHidden = !isActive
+        titleLabel.textColor = isActive ? Theme.electricBlue : Theme.brightWhite
+    }
+}
+
+// MARK: - Chat Message Cell
 
 class ChatMessageCell: UITableViewCell {
     private let bubbleView = UIView()
     private let msgLabel = UILabel()
     private let imagePreview = UIImageView()
+    private let saveImageButton = UIButton()
     private let videoButton = UIButton()
     private let activityIndicator = UIActivityIndicatorView(style: .gray)
     
+    var onSaveImage: ((Int) -> Void)?
     var onSaveVideo: ((URL) -> Void)?
     private var videoURL: URL?
     private var bubbleLeading: NSLayoutConstraint!
     private var bubbleTrailing: NSLayoutConstraint!
+    private var cellIndex = 0
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -642,10 +924,18 @@ class ChatMessageCell: UITableViewCell {
         imagePreview.translatesAutoresizingMaskIntoConstraints = false
         bubbleView.addSubview(imagePreview)
         
-        videoButton.setTitle("▶ 保存视频", for: .normal)
-        videoButton.titleLabel?.font = Theme.Font.bold(size: 13)
+        saveImageButton.setTitle("💾 保存图片", for: .normal)
+        saveImageButton.titleLabel?.font = Theme.Font.bold(size: 12)
+        saveImageButton.backgroundColor = Theme.electricBlue
+        saveImageButton.layer.cornerRadius = 10
+        saveImageButton.translatesAutoresizingMaskIntoConstraints = false
+        saveImageButton.addTarget(self, action: #selector(didTapSaveImage), for: .touchUpInside)
+        bubbleView.addSubview(saveImageButton)
+        
+        videoButton.setTitle("💾 保存视频", for: .normal)
+        videoButton.titleLabel?.font = Theme.Font.bold(size: 12)
         videoButton.backgroundColor = Theme.neonPink
-        videoButton.layer.cornerRadius = 12
+        videoButton.layer.cornerRadius = 10
         videoButton.translatesAutoresizingMaskIntoConstraints = false
         videoButton.addTarget(self, action: #selector(didTapSaveVideo), for: .touchUpInside)
         bubbleView.addSubview(videoButton)
@@ -673,10 +963,15 @@ class ChatMessageCell: UITableViewCell {
             imagePreview.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -8),
             imagePreview.heightAnchor.constraint(equalToConstant: 200),
             
-            videoButton.topAnchor.constraint(equalTo: imagePreview.bottomAnchor, constant: 8),
+            saveImageButton.topAnchor.constraint(equalTo: imagePreview.bottomAnchor, constant: 8),
+            saveImageButton.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 8),
+            saveImageButton.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -8),
+            saveImageButton.heightAnchor.constraint(equalToConstant: 32),
+            
+            videoButton.topAnchor.constraint(equalTo: saveImageButton.bottomAnchor, constant: 6),
             videoButton.leadingAnchor.constraint(equalTo: bubbleView.leadingAnchor, constant: 8),
             videoButton.trailingAnchor.constraint(equalTo: bubbleView.trailingAnchor, constant: -8),
-            videoButton.heightAnchor.constraint(equalToConstant: 36),
+            videoButton.heightAnchor.constraint(equalToConstant: 32),
             videoButton.bottomAnchor.constraint(equalTo: bubbleView.bottomAnchor, constant: -8),
             
             activityIndicator.centerXAnchor.constraint(equalTo: bubbleView.centerXAnchor),
@@ -690,6 +985,7 @@ class ChatMessageCell: UITableViewCell {
         super.prepareForReuse()
         imagePreview.image = nil
         videoButton.isHidden = true
+        saveImageButton.isHidden = true
         imagePreview.isHidden = true
         activityIndicator.stopAnimating()
         videoURL = nil
@@ -697,7 +993,8 @@ class ChatMessageCell: UITableViewCell {
         bubbleTrailing.isActive = false
     }
     
-    func configure(with msg: ChatMessage, apiKeyMissing: Bool) {
+    func configure(with msg: ChatMessage, apiKeyMissing: Bool, index: Int) {
+        cellIndex = index
         msgLabel.text = msg.text
         
         bubbleLeading.isActive = false
@@ -718,6 +1015,7 @@ class ChatMessageCell: UITableViewCell {
         if msg.isLoading && !apiKeyMissing {
             activityIndicator.startAnimating()
             imagePreview.isHidden = true
+            saveImageButton.isHidden = true
             videoButton.isHidden = true
         } else {
             activityIndicator.stopAnimating()
@@ -726,11 +1024,14 @@ class ChatMessageCell: UITableViewCell {
         if let image = msg.image {
             imagePreview.image = image
             imagePreview.isHidden = false
+            saveImageButton.isHidden = false
+            saveImageButton.tag = index
         } else {
             imagePreview.isHidden = true
+            saveImageButton.isHidden = true
         }
         
-        if let urlStr = msg.videoURL, let url = URL(string: urlStr) {
+        if let urlStr = msg.videoURL, let url = URL(string: urlStr.absoluteString) ?? (msg.videoURL).flatMap({ URL(string: $0) }) {
             videoURL = url
             videoButton.isHidden = false
         } else {
@@ -738,9 +1039,34 @@ class ChatMessageCell: UITableViewCell {
         }
     }
     
+    @objc private func didTapSaveImage() {
+        onSaveImage?(cellIndex)
+    }
+    
     @objc private func didTapSaveVideo() {
         if let url = videoURL {
             onSaveVideo?(url)
         }
+    }
+}
+
+// ChatMessage with URL videoURL
+struct ChatMessage {
+    let id: String
+    let text: String
+    let isUser: Bool
+    var image: UIImage?
+    var videoURL: URL?
+    let isLoading: Bool
+    let timestamp: Date
+    
+    init(id: String = UUID().uuidString, text: String, isUser: Bool, image: UIImage? = nil, videoURL: URL? = nil, isLoading: Bool = false, timestamp: Date = Date()) {
+        self.id = id
+        self.text = text
+        self.isUser = isUser
+        self.image = image
+        self.videoURL = videoURL
+        self.isLoading = isLoading
+        self.timestamp = timestamp
     }
 }
