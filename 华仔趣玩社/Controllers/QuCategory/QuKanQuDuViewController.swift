@@ -1,6 +1,40 @@
 import UIKit
 import WebKit
 
+// MARK: - 播放记录模型
+struct PlaybackRecord: Codable {
+    let id: String
+    let title: String
+    let url: String
+    let timestamp: Date
+    let siteName: String
+}
+
+class PlaybackHistory {
+    private static let key = "playback_records"
+    private static let maxRecords = 50
+    
+    static func load() -> [PlaybackRecord] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let records = try? JSONDecoder().decode([PlaybackRecord].self, from: data) else { return [] }
+        return records.sorted { $0.timestamp > $1.timestamp }
+    }
+    
+    static func add(title: String, url: String, siteName: String) {
+        var records = load()
+        let record = PlaybackRecord(id: UUID().uuidString, title: title, url: url, timestamp: Date(), siteName: siteName)
+        records.insert(record, at: 0)
+        if records.count > maxRecords { records = Array(records.prefix(maxRecords)) }
+        if let data = try? JSONEncoder().encode(records) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+    
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
 class QuKanQuDuViewController: UIViewController {
     
     private let movieSites: [(name: String, icon: String, url: String, color: UIColor)] = [
@@ -13,6 +47,7 @@ class QuKanQuDuViewController: UIViewController {
     ]
     
     private var isSidebarCollapsed = false
+    private var isRightPanelCollapsed = true
     private var currentIndex = 0
     
     private var sidebarView: UIView!
@@ -20,6 +55,12 @@ class QuKanQuDuViewController: UIViewController {
     private var toggleButton: UIButton!
     private var webView: WKWebView!
     private var siteButtons: [UIButton] = []
+    
+    private var rightPanel: UIView!
+    private var rightPanelWidthConstraint: NSLayoutConstraint!
+    private var rightToggleButton: UIButton!
+    private var historyTable: UITableView!
+    private var playbackRecords: [PlaybackRecord] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -40,6 +81,7 @@ class QuKanQuDuViewController: UIViewController {
         webView = WKWebView(frame: .zero, configuration: webConfig)
         webView.backgroundColor = .clear
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+        webView.navigationDelegate = self
         webView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(webView)
         
@@ -53,7 +95,18 @@ class QuKanQuDuViewController: UIViewController {
         toggleButton.addTarget(self, action: #selector(toggleSidebar), for: .touchUpInside)
         view.addSubview(toggleButton)
         
+        rightToggleButton = UIButton(type: .system)
+        rightToggleButton.setTitle("📋", for: .normal)
+        rightToggleButton.titleLabel?.font = Theme.Font.bold(size: 18)
+        rightToggleButton.setTitleColor(Theme.neonPink, for: .normal)
+        rightToggleButton.backgroundColor = Theme.cardBackground.withAlphaComponent(0.8)
+        rightToggleButton.layer.cornerRadius = 22
+        rightToggleButton.translatesAutoresizingMaskIntoConstraints = false
+        rightToggleButton.addTarget(self, action: #selector(toggleRightPanel), for: .touchUpInside)
+        view.addSubview(rightToggleButton)
+        
         setupSidebar()
+        setupRightPanel()
         
         NSLayoutConstraint.activate([
             webView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -64,7 +117,12 @@ class QuKanQuDuViewController: UIViewController {
             toggleButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             toggleButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
             toggleButton.widthAnchor.constraint(equalToConstant: 44),
-            toggleButton.heightAnchor.constraint(equalToConstant: 44)
+            toggleButton.heightAnchor.constraint(equalToConstant: 44),
+            
+            rightToggleButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            rightToggleButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+            rightToggleButton.widthAnchor.constraint(equalToConstant: 44),
+            rightToggleButton.heightAnchor.constraint(equalToConstant: 44),
         ])
     }
     
@@ -157,6 +215,70 @@ class QuKanQuDuViewController: UIViewController {
         ])
     }
     
+    private func setupRightPanel() {
+        rightPanel = UIView()
+        rightPanel.backgroundColor = Theme.cardBackground.withAlphaComponent(0.95)
+        rightPanel.translatesAutoresizingMaskIntoConstraints = false
+        rightPanel.clipsToBounds = true
+        view.addSubview(rightPanel)
+        
+        rightPanelWidthConstraint = rightPanel.widthAnchor.constraint(equalToConstant: 0)
+        
+        let headerLabel = UILabel()
+        headerLabel.text = "📋 播放记录"
+        headerLabel.font = Theme.Font.bold(size: 18)
+        headerLabel.textColor = Theme.brightWhite
+        headerLabel.translatesAutoresizingMaskIntoConstraints = false
+        rightPanel.addSubview(headerLabel)
+        
+        let clearButton = UIButton(type: .system)
+        clearButton.setTitle("清空", for: .normal)
+        clearButton.titleLabel?.font = Theme.Font.regular(size: 13)
+        clearButton.setTitleColor(Theme.mutedGray, for: .normal)
+        clearButton.translatesAutoresizingMaskIntoConstraints = false
+        clearButton.addTarget(self, action: #selector(clearHistory), for: .touchUpInside)
+        rightPanel.addSubview(clearButton)
+        
+        let hideButton = UIButton(type: .system)
+        hideButton.setTitle("▶ 收起", for: .normal)
+        hideButton.titleLabel?.font = Theme.Font.regular(size: 14)
+        hideButton.setTitleColor(Theme.mutedGray, for: .normal)
+        hideButton.translatesAutoresizingMaskIntoConstraints = false
+        hideButton.addTarget(self, action: #selector(toggleRightPanel), for: .touchUpInside)
+        rightPanel.addSubview(hideButton)
+        
+        playbackRecords = PlaybackHistory.load()
+        historyTable = UITableView()
+        historyTable.backgroundColor = .clear
+        historyTable.separatorStyle = .none
+        historyTable.dataSource = self
+        historyTable.delegate = self
+        historyTable.register(HistoryCell.self, forCellReuseIdentifier: "HistoryCell")
+        historyTable.translatesAutoresizingMaskIntoConstraints = false
+        rightPanel.addSubview(historyTable)
+        
+        NSLayoutConstraint.activate([
+            rightPanel.topAnchor.constraint(equalTo: view.topAnchor),
+            rightPanel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            rightPanel.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            rightPanelWidthConstraint,
+            
+            headerLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            headerLabel.leadingAnchor.constraint(equalTo: rightPanel.leadingAnchor, constant: 16),
+            
+            clearButton.centerYAnchor.constraint(equalTo: headerLabel.centerYAnchor),
+            clearButton.trailingAnchor.constraint(equalTo: hideButton.leadingAnchor, constant: -12),
+            
+            hideButton.centerYAnchor.constraint(equalTo: headerLabel.centerYAnchor),
+            hideButton.trailingAnchor.constraint(equalTo: rightPanel.trailingAnchor, constant: -16),
+            
+            historyTable.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 12),
+            historyTable.leadingAnchor.constraint(equalTo: rightPanel.leadingAnchor),
+            historyTable.trailingAnchor.constraint(equalTo: rightPanel.trailingAnchor),
+            historyTable.bottomAnchor.constraint(equalTo: rightPanel.bottomAnchor),
+        ])
+    }
+    
     private func loadSite(index: Int) {
         guard index < movieSites.count else { return }
         currentIndex = index
@@ -173,9 +295,18 @@ class QuKanQuDuViewController: UIViewController {
     
     @objc private func toggleSidebar() {
         isSidebarCollapsed.toggle()
-        
         UIView.animate(withDuration: 0.3) {
             self.sidebarWidthConstraint.constant = self.isSidebarCollapsed ? 0 : 220
+            self.view.layoutIfNeeded()
+        }
+    }
+    
+    @objc private func toggleRightPanel() {
+        isRightPanelCollapsed.toggle()
+        playbackRecords = PlaybackHistory.load()
+        historyTable.reloadData()
+        UIView.animate(withDuration: 0.3) {
+            self.rightPanelWidthConstraint.constant = self.isRightPanelCollapsed ? 0 : 260
             self.view.layoutIfNeeded()
         }
     }
@@ -185,5 +316,104 @@ class QuKanQuDuViewController: UIViewController {
         if !isSidebarCollapsed {
             toggleSidebar()
         }
+    }
+    
+    @objc private func clearHistory() {
+        PlaybackHistory.clear()
+        playbackRecords = []
+        historyTable.reloadData()
+    }
+}
+
+// MARK: - WKNavigationDelegate
+extension QuKanQuDuViewController: WKNavigationDelegate {
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard let urlStr = webView.url?.absoluteString, !urlStr.isEmpty else { return }
+        if currentIndex < movieSites.count {
+            PlaybackHistory.add(title: movieSites[currentIndex].name, url: urlStr, siteName: movieSites[currentIndex].name)
+            playbackRecords = PlaybackHistory.load()
+            if !isRightPanelCollapsed {
+                historyTable.reloadData()
+            }
+        }
+    }
+}
+
+// MARK: - TableView
+extension QuKanQuDuViewController: UITableViewDataSource, UITableViewDelegate {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        playbackRecords.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "HistoryCell", for: indexPath) as! HistoryCell
+        let record = playbackRecords[indexPath.row]
+        cell.configure(with: record)
+        return cell
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let record = playbackRecords[indexPath.row]
+        if let url = URL(string: record.url) {
+            var req = URLRequest(url: url)
+            req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+            webView.load(req)
+        }
+    }
+}
+
+// MARK: - History Cell
+class HistoryCell: UITableViewCell {
+    private let titleLabel = UILabel()
+    private let siteLabel = UILabel()
+    private let timeLabel = UILabel()
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        backgroundColor = Theme.cardBackground.withAlphaComponent(0.4)
+        selectionStyle = .none
+        layer.cornerRadius = 8
+        clipsToBounds = true
+        
+        titleLabel.font = Theme.Font.bold(size: 13)
+        titleLabel.textColor = Theme.brightWhite
+        titleLabel.numberOfLines = 2
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(titleLabel)
+        
+        siteLabel.font = Theme.Font.regular(size: 11)
+        siteLabel.textColor = Theme.electricBlue
+        siteLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(siteLabel)
+        
+        timeLabel.font = Theme.Font.regular(size: 10)
+        timeLabel.textColor = Theme.mutedGray
+        timeLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(timeLabel)
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            
+            siteLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            siteLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            
+            timeLabel.topAnchor.constraint(equalTo: siteLabel.bottomAnchor, constant: 2),
+            timeLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            timeLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
+        ])
+    }
+    
+    required init?(coder: NSCoder) { fatalError() }
+    
+    func configure(with record: PlaybackRecord) {
+        titleLabel.text = record.title
+        siteLabel.text = record.siteName
+        let secs = Int(-record.timestamp.timeIntervalSinceNow)
+        if secs < 60 { timeLabel.text = "刚刚" }
+        else if secs < 3600 { timeLabel.text = "\(secs/60)分钟前" }
+        else if secs < 86400 { timeLabel.text = "\(secs/3600)小时前" }
+        else { timeLabel.text = "\(secs/86400)天前" }
     }
 }

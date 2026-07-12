@@ -5,6 +5,7 @@ enum AIMode: String, CaseIterable {
     case shortDrama = "剧情短片"
     case imageGen = "图片生成"
     case videoGen = "视频生成"
+    case imageToVideo = "图生视频"
     case pavo = "Pavo 剧情工厂"
 }
 
@@ -40,6 +41,11 @@ class QuAIViewController: UIViewController {
     private let imageModels = ["agnes-image-2.0-flash", "agnes-image-2.1-flash"]
     private let videoModels = ["agnes-video-v2.0"]
     private var isGenerating = false
+    
+    // 图生视频
+    private var selectedImageForVideo: UIImage?
+    private var imagePreviewInBar: UIImageView?
+    private let beeimgToken = "2058|bEouQ9HmHO1EnXCUK75hKZrg07WnTDZIGRH0QoBL6483d1c3"
     
     private var apiKey: String {
         UserDefaults.standard.string(forKey: "agnes_api_key") ?? ""
@@ -422,6 +428,8 @@ class QuAIViewController: UIViewController {
             textField.attributedPlaceholder = NSAttributedString(string: "输入聊天内容...", attributes: [.foregroundColor: Theme.mutedGray])
         case .pavo:
             textField.attributedPlaceholder = NSAttributedString(string: "输入故事主题，开始 Pavo 创作...", attributes: [.foregroundColor: Theme.mutedGray])
+        case .imageToVideo:
+            textField.attributedPlaceholder = NSAttributedString(string: "输入视频描述，然后选择图片...", attributes: [.foregroundColor: Theme.mutedGray])
         default:
             textField.attributedPlaceholder = NSAttributedString(string: "输入你的想法...", attributes: [.foregroundColor: Theme.mutedGray])
         }
@@ -440,7 +448,7 @@ class QuAIViewController: UIViewController {
             videoModelButton.alpha = 0.4
             imageModelButton.setTitleColor(Theme.brightWhite, for: .normal)
             imageModelButton.alpha = 1.0
-        case .videoGen, .shortDrama:
+        case .videoGen, .shortDrama, .imageToVideo:
             videoModelButton.setTitleColor(Theme.brightWhite, for: .normal)
             videoModelButton.alpha = 1.0
             imageModelButton.setTitleColor(Theme.brightWhite, for: .normal)
@@ -464,6 +472,13 @@ class QuAIViewController: UIViewController {
         textField.text = ""
         textField.resignFirstResponder()
         
+        // 图生视频模式：先确保选了图
+        if currentMode == .imageToVideo && selectedImageForVideo == nil {
+            textField.text = text
+            showImagePickerForVideo()
+            return
+        }
+        
         let userMsg = ChatMessage(text: text, isUser: true)
         addMessage(userMsg)
         
@@ -471,6 +486,7 @@ class QuAIViewController: UIViewController {
             switch currentMode {
             case .chat: return "🤔 正在思考..."
             case .shortDrama: return "🎬 正在创作剧情短片..."
+            case .imageToVideo: return "🎬 正在生成视频..."
             default: return "🤔 正在思考..."
             }
         }()
@@ -488,6 +504,17 @@ class QuAIViewController: UIViewController {
             generateVideo(prompt: text, loadingId: loadingMsg.id)
         case .shortDrama:
             generateShortDrama(prompt: text, loadingId: loadingMsg.id)
+        case .imageToVideo:
+            if let img = selectedImageForVideo {
+                generateImageToVideo(image: img, prompt: text, loadingId: loadingMsg.id)
+                selectedImageForVideo = nil
+                imagePreviewInBar?.isHidden = true
+            } else {
+                isGenerating = false
+                let _ = currentMessages.popLast()
+                let _ = currentMessages.popLast()
+                chatTable.reloadData()
+            }
         case .pavo:
             currentMessages.removeLast()
             currentMessages.removeLast()
@@ -629,14 +656,22 @@ let body: [String: Any] = ["model": currentImageModel, "prompt": prompt, "n": 1,
         var req = URLRequest(url: url)
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
+        var attempts = 0
+        let maxAttempts = 60
+        
         func poll() {
+            attempts += 1
+            if attempts > maxAttempts {
+                DispatchQueue.main.async {
+                    self.isGenerating = false
+                    self.updateMessage(id: loadingId, text: "❌ 视频生成超时", isLoading: false)
+                }
+                return
+            }
             URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
                 guard let self = self else { return }
                 if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     let status = json["status"] as? String ?? ""
-                    DispatchQueue.main.async {
-                        self.updateMessage(id: loadingId, text: "⏳ 视频生成中... \(status)", isLoading: true)
-                    }
                     if status == "succeeded" || status == "completed" {
                         if let output = json["url"] as? String, let videoUrl = URL(string: output) {
                             self.downloadAndShowVideo(url: videoUrl, loadingId: loadingId)
@@ -744,7 +779,18 @@ let body: [String: Any] = ["model": currentImageModel, "prompt": prompt, "n": 1,
         var req = URLRequest(url: url)
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         
+        var attempts = 0
+        let maxAttempts = 60
+        
         func poll() {
+            attempts += 1
+            if attempts > maxAttempts {
+                DispatchQueue.main.async {
+                    self.isGenerating = false
+                    self.updateMessage(id: loadingId, text: "🎬 画面已生成（视频生成超时）", isLoading: false)
+                }
+                return
+            }
             URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
                 guard let self = self else { return }
                 if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -775,6 +821,147 @@ let body: [String: Any] = ["model": currentImageModel, "prompt": prompt, "n": 1,
         }
         poll()
     }
+    
+    // MARK: - 图生视频
+    
+    private func showImagePickerForVideo() {
+        let alert = UIAlertController(title: "选择图片", message: "图生视频需要先选择一张图片", preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: "📱 从相册选择", style: .default, handler: { [weak self] _ in
+            self?.pickImageFromLibrary()
+        }))
+        alert.addAction(UIAlertAction(title: "🔗 粘贴图片URL", style: .default, handler: { [weak self] _ in
+            self?.promptImageURL()
+        }))
+        alert.addAction(UIAlertAction(title: "取消", style: .cancel))
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = sendButton
+            popover.sourceRect = sendButton.bounds
+        }
+        present(alert, animated: true)
+    }
+    
+    private func pickImageFromLibrary() {
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.delegate = self
+        present(picker, animated: true)
+    }
+    
+    private func promptImageURL() {
+        let alert = UIAlertController(title: "粘贴图片URL", message: nil, preferredStyle: .alert)
+        alert.addTextField { tf in
+            tf.placeholder = "https://example.com/image.jpg"
+            tf.keyboardType = .URL
+        }
+        alert.addAction(UIAlertAction(title: "确定", style: .default, handler: { [weak self] _ in
+            guard let urlStr = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespaces), !urlStr.isEmpty,
+                  let url = URL(string: urlStr) else {
+                self?.showToast("❌ 无效的URL")
+                return
+            }
+            URLSession.shared.dataTask(with: url) { data, _, _ in
+                DispatchQueue.main.async {
+                    if let data = data, let image = UIImage(data: data) {
+                        self?.setSelectedImage(image)
+                    } else {
+                        self?.showToast("❌ 下载图片失败")
+                    }
+                }
+            }.resume()
+        }))
+        alert.addAction(UIAlertAction(title: "取消", style: .cancel))
+        present(alert, animated: true)
+    }
+    
+    private func setSelectedImage(_ image: UIImage) {
+        selectedImageForVideo = image
+        if imagePreviewInBar == nil {
+            imagePreviewInBar = UIImageView(frame: CGRect(x: 0, y: 0, width: 36, height: 36))
+            imagePreviewInBar!.layer.cornerRadius = 6
+            imagePreviewInBar!.clipsToBounds = true
+            imagePreviewInBar!.contentMode = .scaleAspectFill
+            imagePreviewInBar!.translatesAutoresizingMaskIntoConstraints = false
+            bottomBar.addSubview(imagePreviewInBar!)
+            imagePreviewInBar!.centerYAnchor.constraint(equalTo: textField.centerYAnchor).isActive = true
+            imagePreviewInBar!.trailingAnchor.constraint(equalTo: sendButton.leadingAnchor, constant: -8).isActive = true
+            imagePreviewInBar!.widthAnchor.constraint(equalToConstant: 36).isActive = true
+            imagePreviewInBar!.heightAnchor.constraint(equalToConstant: 36).isActive = true
+        }
+        imagePreviewInBar!.image = image
+        imagePreviewInBar!.isHidden = false
+        showToast("✅ 已选择图片，输入描述后发送")
+    }
+    
+    private func uploadImageToBeeimg(_ image: UIImage, completion: @escaping (String?) -> Void) {
+        guard let url = URL(string: "https://beeimg.com/api/upload/file/json/") else { completion(nil); return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        let boundary = UUID().uuidString
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        guard let imageData = image.jpegData(compressionQuality: 0.85) else { completion(nil); return }
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"apikey\"\r\n\r\n".data(using: .utf8)!)
+        body.append("\(beeimgToken)\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        req.httpBody = body
+        
+        URLSession.shared.dataTask(with: req) { data, _, _ in
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let files = json["files"] as? [String: Any],
+                  let imgUrl = files["url"] as? String else {
+                completion(nil)
+                return
+            }
+            completion(imgUrl)
+        }.resume()
+    }
+    
+    private func generateImageToVideo(image: UIImage, prompt: String, loadingId: String) {
+        showToast("⏳ 正在上传图片...")
+        uploadImageToBeeimg(image) { [weak self] imageUrl in
+            guard let self = self, let imageUrl = imageUrl else {
+                DispatchQueue.main.async {
+                    self?.showToast("❌ 图片上传失败")
+                    self?.isGenerating = false
+                    self?.updateMessage(id: loadingId, text: "❌ 图片上传失败，请重试", isLoading: false)
+                }
+                return
+            }
+            DispatchQueue.main.async {
+                self.showToast("✅ 图片已上传，正在生成视频...")
+            }
+            guard let url = URL(string: "\(self.baseURL)/videos") else { return }
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("Bearer \(self.apiKey)", forHTTPHeaderField: "Authorization")
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String: Any] = ["model": self.currentVideoModel, "prompt": prompt, "image_url": imageUrl, "n": 1]
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            
+            URLSession.shared.dataTask(with: req) { data, _, _ in
+                guard let data = data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let taskId = json["id"] as? String else {
+                    DispatchQueue.main.async {
+                        self.isGenerating = false
+                        self.updateMessage(id: loadingId, text: "❌ 视频生成请求失败", isLoading: false)
+                    }
+                    return
+                }
+                self.pollVideoTask(taskId: taskId, loadingId: loadingId)
+            }.resume()
+        }
+    }
+    
+    // MARK: - UIImagePicker Delegate
     
     // MARK: - Helpers
     
@@ -889,6 +1076,20 @@ extension QuAIViewController: UITableViewDataSource, UITableViewDelegate {
         if secs < 3600 { return "\(secs/60)分钟前" }
         if secs < 86400 { return "\(secs/3600)小时前" }
         return "\(secs/86400)天前"
+    }
+}
+
+// MARK: - UIImagePicker Delegate
+
+extension QuAIViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        picker.dismiss(animated: true)
+        if let image = info[.originalImage] as? UIImage {
+            setSelectedImage(image)
+        }
+    }
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true)
     }
 }
 
